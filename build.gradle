@@ -47,12 +47,28 @@ subprojects {
       toolVersion = '0.8.14'
     }
 
+    tasks.named('jacocoTestCoverageVerification').configure {
+      violationRules {
+        rule {
+          limit {
+            counter = 'LINE'
+            value = 'COVEREDRATIO'
+            minimum = 0.75
+          }
+        }
+      }
+    }
+
     tasks.named('jacocoTestReport', JacocoReport).configure {
       dependsOn tasks.named('test')
       reports {
         xml.required = true
         html.required = true
       }
+    }
+
+    tasks.named('check').configure {
+      dependsOn tasks.named('jacocoTestCoverageVerification')
     }
   }
 }

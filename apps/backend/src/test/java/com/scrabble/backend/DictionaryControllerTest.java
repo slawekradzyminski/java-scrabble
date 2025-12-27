@@ -2,6 +2,9 @@ package com.scrabble.backend;
 
 import com.scrabble.dictionary.compile.DictionaryCompiler;
 import com.scrabble.dictionary.format.DictionaryPaths;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeAll;
@@ -26,7 +29,7 @@ class DictionaryControllerTest {
     fstPath = tempDir.resolve("osps.fst");
     metaPath = DictionaryPaths.metaPathFor(fstPath);
 
-    Path input = findRepoFile("osps_shortened.txt");
+    Path input = loadResourceToTempFile("osps_shortened.txt");
     new DictionaryCompiler().compile(input, fstPath);
   }
 
@@ -74,16 +77,15 @@ class DictionaryControllerTest {
         .jsonPath("$.status").isEqualTo("UP");
   }
 
-  private static Path findRepoFile(String filename) {
-    Path current = Path.of("").toAbsolutePath();
-    while (current != null) {
-      Path candidate = current.resolve(filename);
-      if (candidate.toFile().exists()) {
-        return candidate;
+  private static Path loadResourceToTempFile(String resourceName) throws IOException {
+    try (InputStream input = DictionaryControllerTest.class.getResourceAsStream("/" + resourceName)) {
+      if (input == null) {
+        throw new IllegalStateException("Test resource not found: " + resourceName);
       }
-      current = current.getParent();
+      Path tempFile = Files.createTempFile("dictionary-resource-", "-" + resourceName);
+      Files.copy(input, tempFile, StandardCopyOption.REPLACE_EXISTING);
+      return tempFile;
     }
-    throw new IllegalStateException("Unable to locate " + filename + " from " + Path.of("").toAbsolutePath());
   }
 
   private WebTestClient buildClient() {

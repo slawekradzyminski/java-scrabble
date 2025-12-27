@@ -177,6 +177,7 @@ Acceptance checks:
 
 ## Progress updates
 - 2025-12-27: Phase 0 completed (Gradle multi-module, tests, Checkstyle, CI, health endpoint).
+- 2025-12-27: Coverage enforcement (min 75% line) and docs/quality added.
 
 ## Practical build/CI workflow in one repo
 

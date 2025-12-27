@@ -26,4 +26,12 @@ class CoordinateTest {
     assertThrows(IllegalArgumentException.class, () -> Coordinate.parse("P1"));
     assertThrows(IllegalArgumentException.class, () -> Coordinate.parse("A16"));
   }
+
+  @Test
+  void rejectsBlankOrMalformed() {
+    assertThrows(IllegalArgumentException.class, () -> Coordinate.parse(" "));
+    assertThrows(IllegalArgumentException.class, () -> Coordinate.parse("A0"));
+    assertThrows(IllegalArgumentException.class, () -> Coordinate.parse("A-1"));
+    assertThrows(IllegalArgumentException.class, () -> Coordinate.parse("AA"));
+  }
 }

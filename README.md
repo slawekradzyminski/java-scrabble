@@ -35,6 +35,11 @@ To generate coverage reports:
 ./gradlew jacocoTestReport
 ```
 
+Coverage report locations:
+- `apps/backend/build/reports/jacoco/test/html/index.html`
+- `packages/dictionary-runtime/build/reports/jacoco/test/html/index.html`
+- `packages/game-engine/build/reports/jacoco/test/html/index.html`
+
 ## Run backend
 
 ```bash
