@@ -1,29 +1,51 @@
 package com.scrabble.dictionary.tools;
 
 import com.scrabble.dictionary.compile.DictionaryCompiler;
+import java.io.PrintStream;
 import java.nio.file.Path;
 
 public final class DictionaryCli {
   public static void main(String[] args) throws Exception {
+    int exitCode = run(args, System.out, System.err);
+    if (exitCode != 0) {
+      System.exit(exitCode);
+    }
+  }
+
+  static int run(String[] args, PrintStream out, PrintStream err) {
     if (args.length == 0 || "--help".equals(args[0]) || "-h".equals(args[0])) {
-      printHelp();
-      return;
+      printHelp(out);
+      return 0;
     }
 
     if (!"compile".equals(args[0])) {
-      System.err.println("Unknown command: " + args[0]);
-      printHelp();
-      System.exit(2);
+      err.println("Unknown command: " + args[0]);
+      printHelp(out);
+      return 2;
     }
 
-    Args parsed = Args.parse(args);
+    Args parsed;
+    try {
+      parsed = Args.parse(args);
+    } catch (IllegalArgumentException e) {
+      err.println(e.getMessage());
+      printHelp(out);
+      return 2;
+    }
+
     DictionaryCompiler compiler = new DictionaryCompiler();
-    compiler.compile(parsed.inputPath, parsed.outputPath);
+    try {
+      compiler.compile(parsed.inputPath, parsed.outputPath);
+      return 0;
+    } catch (Exception e) {
+      err.println("Compilation failed: " + e.getMessage());
+      return 1;
+    }
   }
 
-  private static void printHelp() {
-    System.out.println("Usage:");
-    System.out.println("  dictionary-cli compile --input <wordlist> --output <fst>");
+  private static void printHelp(PrintStream out) {
+    out.println("Usage:");
+    out.println("  dictionary-cli compile --input <wordlist> --output <fst>");
   }
 
   private record Args(Path inputPath, Path outputPath) {

@@ -32,3 +32,27 @@ Full build:
   -PospsInput=osps.txt \
   -PospsOutput=artifacts/osps.fst
 ```
+
+## Compatibility checks
+Runtime validates:
+- `formatVersion` matches `DictionaryFormat.FORMAT_VERSION`
+- `normalisation` matches `DictionaryFormat.NORMALISATION`
+
+Mismatches fail fast on load.
+
+## Benchmark
+Run JMH benchmarks for lookup throughput:
+```
+./gradlew :packages:dictionary-runtime:jmh
+```
+
+To benchmark against a custom wordlist or prebuilt FST:
+```
+./gradlew :packages:dictionary-runtime:jmh -PjmhWordlistPath=osps.txt
+./gradlew :packages:dictionary-runtime:jmh -PjmhFstPath=artifacts/osps.fst
+```
+
+Quick run (shorter warmup/measurement):
+```
+./gradlew :packages:dictionary-runtime:jmh -PjmhWordlistPath=osps.txt -PjmhQuick=true
+```

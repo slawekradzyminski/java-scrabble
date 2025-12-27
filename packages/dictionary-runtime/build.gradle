@@ -1,5 +1,6 @@
 plugins {
   id 'java-library'
+  alias(libs.plugins.jmh)
 }
 
 dependencies {
@@ -10,4 +11,30 @@ dependencies {
   testImplementation(platform(libs.junit.bom))
   testImplementation(libs.junit.jupiter)
   testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+jmh {
+  jmhVersion = '1.37'
+  def wordlistPath = project.findProperty('jmhWordlistPath')
+  def fstPath = project.findProperty('jmhFstPath')
+  def jmhArgsProperty = project.findProperty('jmhArgs')
+  def quick = project.findProperty('jmhQuick')
+  def args = []
+  if (wordlistPath) {
+    args << "-Ddictionary.wordlistPath=${rootProject.file(wordlistPath).absolutePath}"
+  }
+  if (fstPath) {
+    args << "-Ddictionary.fstPath=${rootProject.file(fstPath).absolutePath}"
+  }
+  jvmArgs = args
+
+  if (jmhArgsProperty) {
+    jmhArgs = jmhArgsProperty.toString().split(' ') as List<String>
+  }
+
+  if (quick?.toString()?.toBoolean()) {
+    warmupIterations = 1
+    iterations = 2
+    fork = 1
+  }
 }

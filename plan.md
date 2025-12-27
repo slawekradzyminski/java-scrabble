@@ -175,9 +175,25 @@ Acceptance checks:
 - You can restart the backend and keep finished games.
 - You can scale to multiple instances (if needed) without breaking rooms.
 
+### Phase 6 — AI readiness (post-MVP)
+Goal: enable strong computer opponents once the game loop is stable.
+
+Deliverables:
+- Dictionary traversal API (prefix walking) to support move generation.
+- Move generator based on anchors + cross-checks + rack permutations.
+- Scoring heuristics (rack leave values, board control).
+- Search strategy (iterative deepening, move ordering, pruning).
+- AI integration in backend (play vs AI mode).
+
+Acceptance checks:
+- AI can generate legal moves quickly for mid-game positions.
+- AI strength can be tuned by depth/time budget.
+
 ## Progress updates
 - 2025-12-27: Phase 0 completed (Gradle multi-module, tests, Checkstyle, CI, health endpoint).
 - 2025-12-27: Coverage enforcement (min 75% line) and docs/quality added.
+- 2025-12-27: Phase 1 tests expanded to validate dictionary metadata compatibility.
+- 2025-12-27: Dictionary CLI tests added; JMH benchmark added for runtime lookups.
 
 ## Practical build/CI workflow in one repo
 
