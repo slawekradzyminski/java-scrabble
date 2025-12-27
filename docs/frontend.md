@@ -29,7 +29,7 @@ npm run test:coverage
 - Lobby is a dedicated view for create/join/room selection (no board shown).
 - After connecting, the game view fits on a single screen with board + rack stacked and a compact sidebar.
 - Start games from the Room panel after you are connected.
-- Rack lives in the sidebar; drag tiles from rack to board cells.
+- Rack sits under the board in a Scrabble-style tray; drag tiles from rack to board cells.
 - Filter rooms by name or id in the lobby list, then join directly.
 - Game URLs include the room id and a name slug (ex: `/room/12-scrabble-night`).
 - The lobby create panel supports adding a computer opponent.

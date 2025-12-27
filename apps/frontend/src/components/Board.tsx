@@ -124,13 +124,14 @@ function DroppableCell({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: cellId(id) });
   const premium = premiumMap[id];
+  const showPremium = Boolean(premium) && !tile;
   return (
     <div
       ref={setNodeRef}
-      className={`board-cell ${premium ? `board-cell--${premium}` : ''} ${isOver ? 'board-cell--highlight' : ''}`}
+      className={`board-cell ${premium && !tile ? `board-cell--${premium}` : ''} ${isOver ? 'board-cell--highlight' : ''}`}
       onClick={() => onClick?.(id)}
     >
-      {premium && <span className="board-cell__premium">{premium.toUpperCase()}</span>}
+      {showPremium && <span className="board-cell__premium">{premium.toUpperCase()}</span>}
       {tile && !isPending && (
         <Tile
           tile={{

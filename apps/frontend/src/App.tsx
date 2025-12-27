@@ -43,7 +43,6 @@ const clearRoomUrl = () => {
 
 export default function App() {
   const [roomId, setRoomId] = useState(getRoomIdFromPath);
-  const [roomName, setRoomName] = useState('');
   const [player, setPlayer] = useState(() => {
     if (typeof window === 'undefined') {
       return '';
@@ -74,13 +73,11 @@ export default function App() {
 
   const handleJoinRoom = (id: string, name?: string) => {
     setRoomId(id);
-    setRoomName(name ?? '');
     updateRoomUrl(id, name);
   };
 
   const handleLeaveRoom = () => {
     setRoomId('');
-    setRoomName('');
     clearRoomUrl();
   };
 

@@ -204,16 +204,16 @@ describe('Game', () => {
     });
   });
 
-  it('clears placements when Recall tiles is clicked', async () => {
+  it('clears placements when Reset is clicked', async () => {
     render(<Game {...defaultProps} />);
     await waitForConnection();
     sendSnapshot();
 
     fireEvent.click(screen.getByRole('button', { name: 'Test add placement' }));
-    expect(screen.getByRole('button', { name: 'Recall tiles' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Reset' })).toBeEnabled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Recall tiles' }));
-    expect(screen.getByRole('button', { name: 'Recall tiles' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled();
   });
 
   it('starts game and requests sync', async () => {
@@ -310,4 +310,3 @@ describe('Game', () => {
     expect(screen.getByRole('button', { name: 'Start' })).toBeDisabled();
   });
 });
-

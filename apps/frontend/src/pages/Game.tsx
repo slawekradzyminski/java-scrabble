@@ -55,10 +55,9 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
-  const currentPlayer = snapshot.players.find(p => p.name === player);
-  const serverRackTiles = currentPlayer?.rack ?? [];
-
   const rackTiles = useMemo(() => {
+    const currentPlayer = snapshot.players.find(p => p.name === player);
+    const serverRackTiles = currentPlayer?.rack ?? [];
     const placedTiles = Object.values(placements);
     if (placedTiles.length === 0) {
       return serverRackTiles;
@@ -73,7 +72,7 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
       }
     }
     return remaining;
-  }, [serverRackTiles, placements]);
+  }, [snapshot.players, player, placements]);
 
   const resetLocalState = useCallback(() => {
     setPlacements({});
@@ -185,7 +184,7 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     });
 
     socket.connect(targetRoomId, targetPlayer);
-  }, [getSocket, resetLocalState]);
+  }, [appendEventLog, getSocket, mergeSnapshot, resetLocalState]);
 
   useEffect(() => {
     if (!roomId || !player) {

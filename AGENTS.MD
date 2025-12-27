@@ -3,6 +3,9 @@
 ## Required checks before final response
 - Run `./gradlew test check` after changes.
 - Run `./gradlew jacocoTestReport` to refresh coverage reports.
+- Run frontend checks from `apps/frontend`:
+  - `npm run lint`
+  - `npm run test`
 
 ## Coverage expectations
 - Maintain minimum line coverage of 75% per Java module.
