@@ -46,6 +46,13 @@ Coverage report locations:
 ./gradlew :apps:backend:bootRun
 ```
 
+Or use helper scripts:
+
+```bash
+./start_server.sh
+./stop_server.sh
+```
+
 Example dictionary call:
 
 ```bash
@@ -56,4 +63,24 @@ Health endpoint:
 
 ```bash
 curl "http://localhost:8080/actuator/health"
+```
+
+Lobby endpoints:
+
+```bash
+curl -X POST "http://localhost:8080/api/rooms" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Room 1","owner":"Alice"}'
+
+curl "http://localhost:8080/api/rooms"
+
+curl -X POST "http://localhost:8080/api/rooms/1/join" \
+  -H "Content-Type: application/json" \
+  -d '{"player":"Bob"}'
+```
+
+WebSocket endpoint (placeholder):
+
+```
+ws://localhost:8080/ws
 ```

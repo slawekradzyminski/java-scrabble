@@ -196,6 +196,9 @@ Acceptance checks:
 - 2025-12-27: Dictionary CLI tests added; JMH benchmark added for runtime lookups.
 - 2025-12-27: Phase 1 completed (dictionary pipeline + tests + benchmark).
 - 2025-12-27: Phase 2 completed (engine scaffolding + move validation + scoring + challenge flow).
+- 2025-12-27: Phase 3 started (backend lobby and WebSocket scaffolding).
+- 2025-12-27: Phase 3: lobby REST + WebSocket placeholder implemented with tests.
+- 2025-12-27: Phase 3: WebSocket handler parsing + start/stop scripts + e2e smoke added.
 
 ## Practical build/CI workflow in one repo
 
