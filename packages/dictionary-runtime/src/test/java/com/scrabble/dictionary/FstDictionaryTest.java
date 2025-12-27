@@ -10,14 +10,14 @@ import java.nio.file.Path;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FstDictionaryTest {
 
   @Test
   void findsWordsFromWordlist() throws Exception {
+    // given
     Path tempDir = Files.createTempDirectory("fst-test");
     Path fstPath = tempDir.resolve("osps.fst");
 
@@ -26,40 +26,50 @@ class FstDictionaryTest {
 
     FstDictionary dictionary = FstDictionary.load(fstPath, DictionaryPaths.metaPathFor(fstPath));
 
-    assertTrue(dictionary.contains("zajawiałeś"));
-    assertTrue(dictionary.contains("ZAJAWIAŁEŚ"));
-    assertTrue(dictionary.contains("półroczniakach"));
+    // when
+    assertThat(dictionary.contains("zajawiałeś")).isTrue();
+    assertThat(dictionary.contains("ZAJAWIAŁEŚ")).isTrue();
+
+    // then
+    assertThat(dictionary.contains("półroczniakach")).isTrue();
   }
 
   @Test
   void rejectsUnknownWords() throws Exception {
+    // given
     Path tempDir = Files.createTempDirectory("fst-test-miss");
     Path fstPath = tempDir.resolve("osps.fst");
 
     Path input = TestWordlists.loadResourceToTempFile("osps_shortened.txt");
     new DictionaryCompiler().compile(input, fstPath);
 
+    // when
     FstDictionary dictionary = FstDictionary.load(fstPath, DictionaryPaths.metaPathFor(fstPath));
 
-    assertFalse(dictionary.contains("nieistniejaceslowo"));
+    // then
+    assertThat(dictionary.contains("nieistniejaceslowo")).isFalse();
   }
 
   @Test
   void keepsDiacriticsDuringNormalisation() throws Exception {
+    // given
     Path tempDir = Files.createTempDirectory("fst-test-dia");
     Path fstPath = tempDir.resolve("osps.fst");
 
     Path input = TestWordlists.loadResourceToTempFile("osps_shortened.txt");
     new DictionaryCompiler().compile(input, fstPath);
 
+    // when
     FstDictionary dictionary = FstDictionary.load(fstPath, DictionaryPaths.metaPathFor(fstPath));
 
-    assertTrue(dictionary.contains("PÓŁROCZNIAKACH"));
-    assertFalse(dictionary.contains("POLROCZNIAKACH"));
+    // then
+    assertThat(dictionary.contains("PÓŁROCZNIAKACH")).isTrue();
+    assertThat(dictionary.contains("POLROCZNIAKACH")).isFalse();
   }
 
   @Test
   void rejectsMismatchedFormatVersion() throws Exception {
+    // given
     Path tempDir = Files.createTempDirectory("fst-test-version");
     Path fstPath = tempDir.resolve("osps.fst");
     Path metaPath = DictionaryPaths.metaPathFor(fstPath);
@@ -76,11 +86,14 @@ class FstDictionaryTest {
         Instant.now());
     DictionaryMetaIO.write(metaPath, invalid);
 
-    assertThrows(IllegalStateException.class, () -> FstDictionary.load(fstPath, metaPath));
+    // when + then
+    assertThatThrownBy(() -> FstDictionary.load(fstPath, metaPath))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
   void rejectsMismatchedNormalisation() throws Exception {
+    // given
     Path tempDir = Files.createTempDirectory("fst-test-normalisation");
     Path fstPath = tempDir.resolve("osps.fst");
     Path metaPath = DictionaryPaths.metaPathFor(fstPath);
@@ -97,6 +110,8 @@ class FstDictionaryTest {
         Instant.now());
     DictionaryMetaIO.write(metaPath, invalid);
 
-    assertThrows(IllegalStateException.class, () -> FstDictionary.load(fstPath, metaPath));
+    // when + then
+    assertThatThrownBy(() -> FstDictionary.load(fstPath, metaPath))
+        .isInstanceOf(IllegalStateException.class);
   }
 }

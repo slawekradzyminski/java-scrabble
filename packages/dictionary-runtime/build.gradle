@@ -9,6 +9,7 @@ dependencies {
   implementation(libs.jackson.jsr310)
 
   testImplementation(platform(libs.junit.bom))
+  testImplementation(libs.assertj.core)
   testImplementation(libs.junit.jupiter)
   testRuntimeOnly(libs.junit.platform.launcher)
 }

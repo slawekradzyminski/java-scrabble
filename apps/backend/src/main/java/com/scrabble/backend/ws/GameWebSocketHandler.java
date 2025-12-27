@@ -49,7 +49,7 @@ public class GameWebSocketHandler implements WebSocketHandler {
         roomKey == null ? Flux.empty() : gameHub.sinkForRoom(roomKey).asFlux()
     ).map(message -> session.textMessage(toJson(message)));
 
-    direct.tryEmitNext(snapshotFor(roomKey));
+    direct.tryEmitNext(snapshotFor(roomKey, player.orElse(null)));
 
     Mono<Void> inbound = session.receive()
         .map(WebSocketMessage::getPayloadAsText)
@@ -68,22 +68,26 @@ public class GameWebSocketHandler implements WebSocketHandler {
     try {
       node = objectMapper.readTree(text);
     } catch (JsonProcessingException e) {
-      direct.tryEmitNext(new WsMessage("ERROR", Map.of("reason", "invalid_json")));
+      direct.tryEmitNext(new WsMessage(WsMessageType.ERROR, Map.of("reason", "invalid_json")));
       return;
     }
 
     String type = node.path("type").asText();
     JsonNode payload = node.path("payload");
     if ("SYNC".equals(type)) {
-      direct.tryEmitNext(snapshotFor(roomId));
+      String syncPlayer = payload.path("player").asText(null);
+      if (syncPlayer == null || syncPlayer.isBlank()) {
+        syncPlayer = playerFromQuery;
+      }
+      direct.tryEmitNext(snapshotFor(roomId, syncPlayer));
       return;
     }
     if ("PING".equals(type)) {
-      direct.tryEmitNext(new WsMessage("PONG", Map.of("serverTime", Instant.now().toString())));
+      direct.tryEmitNext(new WsMessage(WsMessageType.PONG, Map.of("serverTime", Instant.now().toString())));
       return;
     }
     if (roomId == null || roomId.isBlank()) {
-      direct.tryEmitNext(new WsMessage("ERROR", Map.of("reason", "missing_room")));
+      direct.tryEmitNext(new WsMessage(WsMessageType.ERROR, Map.of("reason", "missing_room")));
       return;
     }
 
@@ -92,7 +96,7 @@ public class GameWebSocketHandler implements WebSocketHandler {
       player = playerFromQuery;
     }
     if (player == null || player.isBlank()) {
-      direct.tryEmitNext(new WsMessage("MOVE_REJECTED", Map.of("reason", "missing_player")));
+      direct.tryEmitNext(new WsMessage(WsMessageType.MOVE_REJECTED, Map.of("reason", "missing_player")));
       return;
     }
 
@@ -103,25 +107,25 @@ public class GameWebSocketHandler implements WebSocketHandler {
         case "PASS" -> gameService.pass(roomId, player);
         case "CHALLENGE" -> gameService.challenge(roomId, player);
         case "RESIGN" -> gameService.resign(roomId, player);
-        default -> throw new GameCommandException("ERROR", Map.of("reason", "unknown_command"));
+        default -> throw new GameCommandException(WsMessageType.ERROR, Map.of("reason", "unknown_command"));
       };
       emitAll(result.direct(), direct);
       emitAll(result.broadcast(), gameHub.sinkForRoom(roomId));
     } catch (GameCommandException e) {
       direct.tryEmitNext(new WsMessage(e.type(), e.payload()));
     } catch (RuntimeException e) {
-      direct.tryEmitNext(new WsMessage("ERROR", Map.of("reason", "server_error")));
+      direct.tryEmitNext(new WsMessage(WsMessageType.ERROR, Map.of("reason", "server_error")));
     }
   }
 
-  private WsMessage snapshotFor(String roomId) {
+  private WsMessage snapshotFor(String roomId, String player) {
     if (roomId == null) {
-      return new WsMessage("STATE_SNAPSHOT", Map.of("message", "missing_room"));
+      return new WsMessage(WsMessageType.STATE_SNAPSHOT, Map.of("message", "missing_room"));
     }
-    GameSnapshot snapshot = gameService.snapshot(roomId);
+    GameSnapshot snapshot = gameService.snapshotForPlayer(roomId, player);
     Map<String, Object> payload = new HashMap<>(snapshot.toPayload());
     payload.put("serverTime", Instant.now().toString());
-    return new WsMessage("STATE_SNAPSHOT", payload);
+    return new WsMessage(WsMessageType.STATE_SNAPSHOT, payload);
   }
 
   private String toJson(WsMessage message) {

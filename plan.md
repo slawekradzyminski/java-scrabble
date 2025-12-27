@@ -201,6 +201,7 @@ Acceptance checks:
 - 2025-12-27: Phase 3: WebSocket handler parsing + start/stop scripts + e2e smoke added.
 - 2025-12-27: Phase 3: WebSocket commands wired to game engine (play/pass/exchange/challenge/resign), room broadcast hub, expanded snapshots, and backend coverage restored.
 - 2025-12-27: Phase 3: REST command endpoint added for curl-based gameplay; parser shared with WebSocket; e2e curl flow verified.
+- 2025-12-27: Phase 3: Per-player snapshots (rack visibility gated by player) and enum-based WS message types introduced; test structure standardized.
 
 ## Practical build/CI workflow in one repo
 

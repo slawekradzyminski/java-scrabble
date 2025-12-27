@@ -6,6 +6,7 @@ import com.scrabble.backend.ws.GameCommandException;
 import com.scrabble.backend.ws.GameCommandParser;
 import com.scrabble.backend.ws.GameCommandResult;
 import com.scrabble.backend.ws.WsMessage;
+import com.scrabble.backend.ws.WsMessageType;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -36,8 +38,8 @@ public class GameController {
   }
 
   @GetMapping("/state")
-  public GameSnapshot state(@PathVariable String roomId) {
-    return gameService.snapshot(roomId);
+  public GameSnapshot state(@PathVariable String roomId, @RequestParam(value = "player", required = false) String player) {
+    return gameService.snapshotForPlayer(roomId, player);
   }
 
   @PostMapping("/command")
@@ -52,7 +54,7 @@ public class GameController {
         case "PASS" -> gameService.pass(roomId, request.player());
         case "CHALLENGE" -> gameService.challenge(roomId, request.player());
         case "RESIGN" -> gameService.resign(roomId, request.player());
-        default -> throw new GameCommandException("ERROR", Map.of("reason", "unknown_command"));
+        default -> throw new GameCommandException(WsMessageType.ERROR, Map.of("reason", "unknown_command"));
       };
       return ResponseEntity.ok(new GameCommandResponse(result.broadcast(), result.direct()));
     } catch (GameCommandException e) {

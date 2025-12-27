@@ -12,3 +12,6 @@
 ## Documentation hygiene
 - Keep `plan.md` updated with progress notes.
 - Update `docs/` when new subsystems or workflows are introduced.
+
+## Test structure
+- Use `// given`, `// when`, `// then` comment markers in all test methods.

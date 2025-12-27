@@ -5,6 +5,7 @@ import com.scrabble.backend.lobby.RoomService;
 import com.scrabble.backend.ws.GameCommandException;
 import com.scrabble.backend.ws.GameCommandResult;
 import com.scrabble.backend.ws.WsMessage;
+import com.scrabble.backend.ws.WsMessageType;
 import com.scrabble.dictionary.Dictionary;
 import com.scrabble.engine.Board;
 import com.scrabble.engine.BoardState;
@@ -61,8 +62,12 @@ public class GameService {
   }
 
   public GameSnapshot snapshot(String roomId) {
+    return snapshotForPlayer(roomId, null);
+  }
+
+  public GameSnapshot snapshotForPlayer(String roomId, String player) {
     return registry.find(roomId)
-        .map(session -> GameSnapshot.from(session, session.status()))
+        .map(session -> GameSnapshot.from(session, session.status(), player))
         .orElseGet(() -> GameSnapshot.missing(roomId));
   }
 
@@ -83,12 +88,13 @@ public class GameService {
         MoveValidator.validatePlacement(state.board(), move);
         ScoringResult scoring = Scorer.score(state.board(), move, Board.standard());
         state.applyPendingMove(move, scoring);
-        WsMessage proposed = new WsMessage("MOVE_PROPOSED", Map.of(
+        WsMessage proposed = new WsMessage(WsMessageType.MOVE_PROPOSED, Map.of(
             "player", player.name(),
             "score", scoring.totalScore(),
             "words", wordsToPayload(scoring.words()),
             "placements", placementsToPayload(placements)));
-        WsMessage snapshot = new WsMessage("STATE_SNAPSHOT", GameSnapshot.from(session, session.status()).toPayload());
+        WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
+            GameSnapshot.from(session, session.status()).toPayload());
         return GameCommandResult.broadcastOnly(proposed, snapshot);
       } catch (RuntimeException e) {
         restoreTiles(player.rack(), removed);
@@ -131,17 +137,18 @@ public class GameService {
       }
 
       WsMessage result = valid
-          ? new WsMessage("MOVE_ACCEPTED", Map.of(
+          ? new WsMessage(WsMessageType.MOVE_ACCEPTED, Map.of(
               "player", mover.name(),
               "score", pending.scoringResult().totalScore(),
               "words", wordsToPayload(pending.scoringResult().words())))
-          : new WsMessage("MOVE_REJECTED", Map.of(
+          : new WsMessage(WsMessageType.MOVE_REJECTED, Map.of(
               "player", mover.name(),
               "reason", "invalid_words",
               "invalidWords", invalidWords));
 
-      WsMessage turn = new WsMessage("TURN_ADVANCED", currentTurnPayload(state));
-      WsMessage snapshot = new WsMessage("STATE_SNAPSHOT", GameSnapshot.from(session, session.status()).toPayload());
+      WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
+      WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
+          GameSnapshot.from(session, session.status()).toPayload());
       return GameCommandResult.broadcastOnly(result, turn, snapshot);
     }
   }
@@ -155,8 +162,9 @@ public class GameService {
       int playerIndex = requirePlayerIndex(state, playerName);
       ensureCurrentPlayer(state, playerIndex);
       state.advanceTurn();
-      WsMessage turn = new WsMessage("TURN_ADVANCED", currentTurnPayload(state));
-      WsMessage snapshot = new WsMessage("STATE_SNAPSHOT", GameSnapshot.from(session, session.status()).toPayload());
+      WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
+      WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
+          GameSnapshot.from(session, session.status()).toPayload());
       return GameCommandResult.broadcastOnly(turn, snapshot);
     }
   }
@@ -183,8 +191,9 @@ public class GameService {
         List<Tile> drawn = state.bag().draw(tiles.size());
         player.rack().addAll(drawn);
         state.advanceTurn();
-        WsMessage turn = new WsMessage("TURN_ADVANCED", currentTurnPayload(state));
-        WsMessage snapshot = new WsMessage("STATE_SNAPSHOT", GameSnapshot.from(session, session.status()).toPayload());
+        WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
+        WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
+            GameSnapshot.from(session, session.status()).toPayload());
         return GameCommandResult.broadcastOnly(turn, snapshot);
       } catch (RuntimeException e) {
         restoreTiles(player.rack(), removed);
@@ -204,10 +213,11 @@ public class GameService {
       int playerIndex = requirePlayerIndex(state, playerName);
       session.setStatus("ended");
       session.setWinner(determineWinner(state, playerIndex));
-      WsMessage ended = new WsMessage("GAME_ENDED", Map.of(
+      WsMessage ended = new WsMessage(WsMessageType.GAME_ENDED, Map.of(
           "winner", session.winner(),
           "resigned", playerName));
-      WsMessage snapshot = new WsMessage("STATE_SNAPSHOT", GameSnapshot.from(session, session.status()).toPayload());
+      WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
+          GameSnapshot.from(session, session.status()).toPayload());
       return GameCommandResult.broadcastOnly(ended, snapshot);
     }
   }
@@ -245,7 +255,7 @@ public class GameService {
   }
 
   private GameCommandException rejected(String reason) {
-    return new GameCommandException("MOVE_REJECTED", Map.of("reason", reason));
+    return new GameCommandException(WsMessageType.MOVE_REJECTED, Map.of("reason", reason));
   }
 
   private void takePlacedTilesFromRack(Rack rack, Iterable<PlacedTile> placements, List<Tile> removed) {

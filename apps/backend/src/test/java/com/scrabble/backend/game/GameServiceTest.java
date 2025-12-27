@@ -13,14 +13,13 @@ import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class GameServiceTest {
 
   @Test
   void challengeAcceptsValidMoveAndAdvancesTurn() {
+    // given
     RoomService roomService = new RoomService();
     Dictionary dictionary = word -> true;
     GameService gameService = new GameService(roomService, dictionary, new Random(7));
@@ -36,22 +35,25 @@ class GameServiceTest {
         Coordinate.parse("H8"), PlacedTile.fromTile(tiles.get(0)),
         Coordinate.parse("H9"), PlacedTile.fromTile(tiles.get(1)));
 
+    // when
     gameService.playTiles(room.id(), "Alice", placements);
     GameSnapshot afterPlay = gameService.snapshot(room.id());
-    assertTrue(afterPlay.pendingMove());
+    assertThat(afterPlay.pendingMove()).isTrue();
 
     gameService.challenge(room.id(), "Bob");
 
+    // then
     GameSnapshot afterChallenge = gameService.snapshot(room.id());
-    assertFalse(afterChallenge.pendingMove());
-    assertEquals(1, afterChallenge.currentPlayerIndex());
-    assertEquals(2, afterChallenge.boardTiles());
-    assertEquals(7, alice.rack().size());
-    assertTrue(alice.score() > 0);
+    assertThat(afterChallenge.pendingMove()).isFalse();
+    assertThat(afterChallenge.currentPlayerIndex()).isEqualTo(1);
+    assertThat(afterChallenge.boardTiles()).isEqualTo(2);
+    assertThat(alice.rack().size()).isEqualTo(7);
+    assertThat(alice.score()).isPositive();
   }
 
   @Test
   void challengeRejectsInvalidMoveAndRestoresRack() {
+    // given
     RoomService roomService = new RoomService();
     Dictionary dictionary = word -> false;
     GameService gameService = new GameService(roomService, dictionary, new Random(3));
@@ -67,19 +69,22 @@ class GameServiceTest {
         Coordinate.parse("H8"), PlacedTile.fromTile(tiles.get(0)),
         Coordinate.parse("H9"), PlacedTile.fromTile(tiles.get(1)));
 
+    // when
     gameService.playTiles(room.id(), "Alice", placements);
-    assertEquals(5, alice.rack().size());
+    assertThat(alice.rack().size()).isEqualTo(5);
 
     gameService.challenge(room.id(), "Bob");
 
+    // then
     GameSnapshot afterChallenge = gameService.snapshot(room.id());
-    assertFalse(afterChallenge.pendingMove());
-    assertEquals(0, afterChallenge.boardTiles());
-    assertEquals(7, alice.rack().size());
+    assertThat(afterChallenge.pendingMove()).isFalse();
+    assertThat(afterChallenge.boardTiles()).isEqualTo(0);
+    assertThat(alice.rack().size()).isEqualTo(7);
   }
 
   @Test
   void passAdvancesTurn() {
+    // given
     RoomService roomService = new RoomService();
     Dictionary dictionary = word -> true;
     GameService gameService = new GameService(roomService, dictionary, new Random(5));
@@ -88,14 +93,17 @@ class GameServiceTest {
     roomService.join(room.id(), "Bob");
     gameService.start(room.id());
 
+    // when
     gameService.pass(room.id(), "Alice");
 
+    // then
     GameSnapshot snapshot = gameService.snapshot(room.id());
-    assertEquals(1, snapshot.currentPlayerIndex());
+    assertThat(snapshot.currentPlayerIndex()).isEqualTo(1);
   }
 
   @Test
   void exchangeSwapsTilesAndAdvancesTurn() {
+    // given
     RoomService roomService = new RoomService();
     Dictionary dictionary = word -> true;
     GameService gameService = new GameService(roomService, dictionary, new Random(9));
@@ -106,15 +114,18 @@ class GameServiceTest {
     Player alice = session.state().players().get(0);
 
     List<Tile> exchangeTiles = List.of(alice.rack().tiles().get(0));
+    // when
     gameService.exchange(room.id(), "Alice", exchangeTiles);
 
+    // then
     GameSnapshot snapshot = gameService.snapshot(room.id());
-    assertEquals(1, snapshot.currentPlayerIndex());
-    assertEquals(7, alice.rack().size());
+    assertThat(snapshot.currentPlayerIndex()).isEqualTo(1);
+    assertThat(alice.rack().size()).isEqualTo(7);
   }
 
   @Test
   void resignEndsGameAndSetsWinner() {
+    // given
     RoomService roomService = new RoomService();
     Dictionary dictionary = word -> true;
     GameService gameService = new GameService(roomService, dictionary, new Random(11));
@@ -123,11 +134,13 @@ class GameServiceTest {
     roomService.join(room.id(), "Bob");
     gameService.start(room.id());
 
+    // when
     gameService.resign(room.id(), "Alice");
 
+    // then
     GameSnapshot snapshot = gameService.snapshot(room.id());
-    assertEquals("ended", snapshot.status());
-    assertEquals("Bob", snapshot.winner());
+    assertThat(snapshot.status()).isEqualTo("ended");
+    assertThat(snapshot.winner()).isEqualTo("Bob");
   }
 
   private List<Tile> pickNonBlankTiles(List<Tile> tiles, int count) {

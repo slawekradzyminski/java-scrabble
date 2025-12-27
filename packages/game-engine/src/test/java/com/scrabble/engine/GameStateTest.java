@@ -5,13 +5,13 @@ import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class GameStateTest {
 
   @Test
   void acceptsValidChallengeAndAppliesScore() {
+    // given
     BoardState board = BoardState.empty();
     List<Player> players = List.of(new Player("A"), new Player("B"));
     TileBag bag = TileBag.standard(new Random(1));
@@ -22,16 +22,19 @@ class GameStateTest {
         Coordinate.parse("H9"), PlacedTile.fromTile(Tile.of('B', 3))));
     ScoringResult scoring = Scorer.score(board, move, Board.standard());
 
+    // when
     state.applyPendingMove(move, scoring);
-    assertNotNull(state.pendingMove());
+    assertThat(state.pendingMove()).isNotNull();
 
     state.resolveChallenge(true);
-    assertEquals(8, players.get(0).score());
-    assertEquals(1, state.currentPlayerIndex());
+    // then
+    assertThat(players.get(0).score()).isEqualTo(8);
+    assertThat(state.currentPlayerIndex()).isEqualTo(1);
   }
 
   @Test
   void rejectsInvalidChallengeAndSkipsScore() {
+    // given
     BoardState board = BoardState.empty();
     List<Player> players = List.of(new Player("A"), new Player("B"));
     TileBag bag = TileBag.standard(new Random(1));
@@ -42,11 +45,13 @@ class GameStateTest {
         Coordinate.parse("H9"), PlacedTile.fromTile(Tile.of('B', 3))));
     ScoringResult scoring = Scorer.score(board, move, Board.standard());
 
+    // when
     state.applyPendingMove(move, scoring);
     state.resolveChallenge(false);
 
-    assertEquals(0, players.get(0).score());
-    assertEquals(1, state.currentPlayerIndex());
-    assertEquals(true, state.board().isEmpty());
+    // then
+    assertThat(players.get(0).score()).isEqualTo(0);
+    assertThat(state.currentPlayerIndex()).isEqualTo(1);
+    assertThat(state.board().isEmpty()).isTrue();
   }
 }

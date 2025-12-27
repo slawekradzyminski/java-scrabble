@@ -16,7 +16,9 @@ class DictionaryControllerTest {
 
   @Test
   void containsEndpointReturnsTrueForKnownWord() {
+    // given
     WebTestClient client = buildClient();
+    // when + then
     client.get()
         .uri(uriBuilder -> uriBuilder.path("/api/dictionary/contains")
             .queryParam("word", "zajawiałeś")
@@ -30,7 +32,9 @@ class DictionaryControllerTest {
 
   @Test
   void containsEndpointReturnsFalseForUnknownWord() {
+    // given
     WebTestClient client = buildClient();
+    // when + then
     client.get()
         .uri(uriBuilder -> uriBuilder.path("/api/dictionary/contains")
             .queryParam("word", "nieistniejace")
@@ -43,7 +47,9 @@ class DictionaryControllerTest {
 
   @Test
   void healthEndpointIsUp() {
+    // given
     WebTestClient client = buildClient();
+    // when + then
     client.get()
         .uri("/actuator/health")
         .exchange()

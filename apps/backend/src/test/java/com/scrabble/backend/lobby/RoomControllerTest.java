@@ -20,7 +20,9 @@ class RoomControllerTest {
 
   @Test
   void createsAndListsRooms() {
+    // given
     WebTestClient client = buildClient();
+    // when + then
     client.post()
         .uri("/api/rooms")
         .bodyValue(Map.of("name", "Room 1", "owner", "Alice"))
@@ -40,8 +42,11 @@ class RoomControllerTest {
 
   @Test
   void joinsRoom() {
+    // given
     AtomicReference<String> roomId = new AtomicReference<>();
     WebTestClient client = buildClient();
+
+    // when + then
     client.post()
         .uri("/api/rooms")
         .bodyValue(Map.of("name", "Room 2", "owner", "Bob"))

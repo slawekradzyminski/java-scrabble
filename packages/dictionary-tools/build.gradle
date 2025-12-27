@@ -6,6 +6,7 @@ dependencies {
   implementation project(':packages:dictionary-runtime')
 
   testImplementation(platform(libs.junit.bom))
+  testImplementation(libs.assertj.core)
   testImplementation(libs.junit.jupiter)
   testRuntimeOnly(libs.junit.platform.launcher)
 }

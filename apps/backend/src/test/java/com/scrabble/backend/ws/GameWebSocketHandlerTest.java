@@ -15,7 +15,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.socket.client.ReactorNettyWebSocketClient;
 import reactor.core.publisher.Mono;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
     classes = {BackendApplication.class, TestDictionaryConfig.class},
@@ -28,8 +28,11 @@ class GameWebSocketHandlerTest {
 
   @Test
   void returnsSnapshotForMissingRoom() {
+    // given
     ReactorNettyWebSocketClient client = new ReactorNettyWebSocketClient();
     AtomicReference<String> payload = new AtomicReference<>();
+
+    // when
     client.execute(URI.create("ws://localhost:" + port + "/ws"), session ->
         session.receive()
             .map(message -> message.getPayloadAsText())
@@ -38,14 +41,18 @@ class GameWebSocketHandlerTest {
             .then()
     ).block(Duration.ofSeconds(5));
 
-    assertTrue(payload.get().contains("STATE_SNAPSHOT"));
-    assertTrue(payload.get().contains("missing_room"));
+    // then
+    assertThat(payload.get()).contains("STATE_SNAPSHOT");
+    assertThat(payload.get()).contains("missing_room");
   }
 
   @Test
   void respondsToPing() {
+    // given
     ReactorNettyWebSocketClient client = new ReactorNettyWebSocketClient();
     AtomicReference<List<String>> payloads = new AtomicReference<>();
+
+    // when
     client.execute(URI.create("ws://localhost:" + port + "/ws?roomId=1"), session ->
         session.send(Mono.just(session.textMessage("{\"type\":\"PING\"}")))
             .thenMany(session.receive().map(message -> message.getPayloadAsText()).take(2).collectList())
@@ -53,11 +60,13 @@ class GameWebSocketHandlerTest {
             .then()
     ).block(Duration.ofSeconds(5));
 
-    assertTrue(payloads.get().stream().anyMatch(payload -> payload.contains("PONG")));
+    // then
+    assertThat(payloads.get()).anyMatch(payload -> payload.contains("PONG"));
   }
 
   @Test
   void playTilesBroadcastsMoveProposed() {
+    // given
     WebTestClient client = buildClient();
     String roomId = createRoom(client, "Room Ws", "Alice");
     client.post()
@@ -71,7 +80,7 @@ class GameWebSocketHandlerTest {
         .exchange()
         .expectStatus().isOk();
 
-    Map<String, Object> state = fetchState(client, roomId);
+    Map<String, Object> state = fetchState(client, roomId, "Alice");
     List<String> letters = pickNonBlankLetters(state, 2);
 
     String message = "{\"type\":\"PLAY_TILES\",\"payload\":{"
@@ -82,6 +91,8 @@ class GameWebSocketHandlerTest {
 
     ReactorNettyWebSocketClient wsClient = new ReactorNettyWebSocketClient();
     AtomicReference<List<String>> payloads = new AtomicReference<>();
+    
+    // when
     wsClient.execute(URI.create("ws://localhost:" + port + "/ws?roomId=" + roomId + "&player=Alice"), session ->
         session.send(Mono.just(session.textMessage(message)))
             .thenMany(session.receive().map(msg -> msg.getPayloadAsText()).take(3).collectList())
@@ -89,7 +100,8 @@ class GameWebSocketHandlerTest {
             .then()
     ).block(Duration.ofSeconds(5));
 
-    assertTrue(payloads.get().stream().anyMatch(payload -> payload.contains("MOVE_PROPOSED")));
+    // then
+    assertThat(payloads.get()).anyMatch(payload -> payload.contains("MOVE_PROPOSED"));
   }
 
   private WebTestClient buildClient() {
@@ -111,9 +123,11 @@ class GameWebSocketHandlerTest {
   }
 
   @SuppressWarnings("unchecked")
-  private Map<String, Object> fetchState(WebTestClient client, String roomId) {
+  private Map<String, Object> fetchState(WebTestClient client, String roomId, String player) {
     return client.get()
-        .uri("/api/rooms/{roomId}/game/state", roomId)
+        .uri(uriBuilder -> uriBuilder.path("/api/rooms/{roomId}/game/state")
+            .queryParam("player", player)
+            .build(roomId))
         .exchange()
         .expectStatus().isOk()
         .expectBody(Map.class)

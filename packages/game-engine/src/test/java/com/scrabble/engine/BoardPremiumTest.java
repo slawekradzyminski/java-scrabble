@@ -2,20 +2,22 @@ package com.scrabble.engine;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class BoardPremiumTest {
 
   @Test
   void premiumLookupMatchesSpec() {
+    // given
     Board board = Board.standard();
 
-    assertEquals(Premium.TW, board.premiumAt(Coordinate.parse("A1")).orElseThrow());
-    assertEquals(Premium.DW, board.premiumAt(Coordinate.parse("H8")).orElseThrow());
-    assertEquals(Premium.TL, board.premiumAt(Coordinate.parse("F2")).orElseThrow());
-    assertEquals(Premium.DL, board.premiumAt(Coordinate.parse("O12")).orElseThrow());
+    // when
+    assertThat(board.premiumAt(Coordinate.parse("A1"))).contains(Premium.TW);
+    assertThat(board.premiumAt(Coordinate.parse("H8"))).contains(Premium.DW);
+    assertThat(board.premiumAt(Coordinate.parse("F2"))).contains(Premium.TL);
+    assertThat(board.premiumAt(Coordinate.parse("O12"))).contains(Premium.DL);
 
-    assertFalse(board.premiumAt(Coordinate.parse("A2")).isPresent());
+    // then
+    assertThat(board.premiumAt(Coordinate.parse("A2"))).isEmpty();
   }
 }

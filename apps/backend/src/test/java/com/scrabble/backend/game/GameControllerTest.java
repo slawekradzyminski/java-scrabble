@@ -11,7 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
     classes = {BackendApplication.class, TestDictionaryConfig.class},
@@ -24,9 +24,11 @@ class GameControllerTest {
 
   @Test
   void startsGameAndReturnsSnapshot() {
+    // given
     WebTestClient client = buildClient();
     AtomicReference<String> roomId = new AtomicReference<>();
 
+    // when
     client.post()
         .uri("/api/rooms")
         .bodyValue(Map.of("name", "Room 3", "owner", "Dana"))
@@ -35,6 +37,7 @@ class GameControllerTest {
         .expectBody()
         .jsonPath("$.id").value(value -> roomId.set(value.toString()));
 
+    // then
     client.post()
         .uri("/api/rooms/{roomId}/game/start", roomId.get())
         .exchange()
@@ -48,6 +51,7 @@ class GameControllerTest {
 
   @Test
   void commandEndpointPlaysAndChallengesMove() {
+    // given
     WebTestClient client = buildClient();
     String roomId = createRoom(client, "Room 4", "Alice");
     client.post()
@@ -61,9 +65,10 @@ class GameControllerTest {
         .exchange()
         .expectStatus().isOk();
 
-    Map<String, Object> state = fetchState(client, roomId);
+    Map<String, Object> state = fetchState(client, roomId, "Alice");
     List<String> letters = pickNonBlankLetters(state, 2);
 
+    // when
     client.post()
         .uri("/api/rooms/{roomId}/game/command", roomId)
         .bodyValue(Map.of(
@@ -89,8 +94,9 @@ class GameControllerTest {
         .exchange()
         .expectStatus().isOk();
 
-    Map<String, Object> after = fetchState(client, roomId);
-    assertEquals(0, ((Number) after.get("boardTiles")).intValue());
+    // then
+    Map<String, Object> after = fetchState(client, roomId, "Alice");
+    assertThat(((Number) after.get("boardTiles")).intValue()).isEqualTo(0);
   }
 
   private WebTestClient buildClient() {
@@ -112,9 +118,11 @@ class GameControllerTest {
   }
 
   @SuppressWarnings("unchecked")
-  private Map<String, Object> fetchState(WebTestClient client, String roomId) {
+  private Map<String, Object> fetchState(WebTestClient client, String roomId, String player) {
     return client.get()
-        .uri("/api/rooms/{roomId}/game/state", roomId)
+        .uri(uriBuilder -> uriBuilder.path("/api/rooms/{roomId}/game/state")
+            .queryParam("player", player)
+            .build(roomId))
         .exchange()
         .expectStatus().isOk()
         .expectBody(Map.class)

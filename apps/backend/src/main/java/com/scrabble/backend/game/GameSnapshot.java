@@ -29,10 +29,14 @@ public record GameSnapshot(
     String winner) {
 
   public static GameSnapshot from(GameSession session, String status) {
+    return from(session, status, null);
+  }
+
+  public static GameSnapshot from(GameSession session, String status, String viewer) {
     GameState state = session.state();
     BoardState board = state.board();
     List<Map<String, Object>> players = state.players().stream()
-        .map(GameSnapshot::playerToMap)
+        .map(player -> playerToMap(player, viewer))
         .collect(Collectors.toList());
     List<Map<String, Object>> boardTiles = boardTiles(board);
     Map<String, Object> pending = pendingToMap(state.pendingMove(), state.currentPlayerIndex());
@@ -53,10 +57,13 @@ public record GameSnapshot(
     return new GameSnapshot(roomId, "not_started", List.of(), 0, 0, null, false, List.of(), null, null);
   }
 
-  private static Map<String, Object> playerToMap(Player player) {
-    List<Map<String, Object>> rackTiles = player.rack().tiles().stream()
-        .map(GameSnapshot::tileToMap)
-        .collect(Collectors.toList());
+  private static Map<String, Object> playerToMap(Player player, String viewer) {
+    List<Map<String, Object>> rackTiles = List.of();
+    if (viewer != null && player.name().equals(viewer)) {
+      rackTiles = player.rack().tiles().stream()
+          .map(GameSnapshot::tileToMap)
+          .collect(Collectors.toList());
+    }
     return Map.of(
         "name", player.name(),
         "score", player.score(),
