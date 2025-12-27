@@ -36,6 +36,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class GameService {
   private static final int MAX_CONSECUTIVE_PASSES = 4;
+  private static final int MAX_EXCHANGES_PER_PLAYER = 3;
+  private static final int MIN_EXCHANGE_BAG_SIZE = 7;
   private final RoomService roomService;
   private final Dictionary dictionary;
   private final Random random;
@@ -211,6 +213,12 @@ public class GameService {
       if (tiles.isEmpty()) {
         throw rejected("empty_exchange");
       }
+      if (session.exchangesUsed(playerName) >= MAX_EXCHANGES_PER_PLAYER) {
+        throw rejected("exchange_limit_reached");
+      }
+      if (state.bag().size() < MIN_EXCHANGE_BAG_SIZE) {
+        throw rejected("bag_too_small");
+      }
       if (state.bag().size() < tiles.size()) {
         throw rejected("bag_too_small");
       }
@@ -221,6 +229,7 @@ public class GameService {
         state.bag().addAll(removed, random);
         List<Tile> drawn = state.bag().draw(tiles.size());
         player.rack().addAll(drawn);
+        session.incrementExchanges(playerName);
         state.advanceTurn();
         session.incrementPasses();
         WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
@@ -264,6 +273,9 @@ public class GameService {
   }
 
   private void applyAiTurns(GameSession session, List<WsMessage> broadcast) {
+    if (applyAiResponseToPendingMove(session, broadcast)) {
+      return;
+    }
     int safety = 0;
     while ("active".equals(session.status()) && session.state().pendingMove() == null) {
       GameState state = session.state();
@@ -324,6 +336,56 @@ public class GameService {
         }
       }
     }
+  }
+
+  private boolean applyAiResponseToPendingMove(GameSession session, List<WsMessage> broadcast) {
+    GameState state = session.state();
+    PendingMove pending = state.pendingMove();
+    if (pending == null) {
+      return false;
+    }
+    int moverIndex = state.currentPlayerIndex();
+    int challengerIndex = (moverIndex + 1) % state.players().size();
+    String challengerName = state.players().get(challengerIndex).name();
+    if (!session.isBot(challengerName)) {
+      return false;
+    }
+
+    Player mover = state.players().get(moverIndex);
+    List<String> invalidWords = pending.scoringResult().words().stream()
+        .map(Word::text)
+        .filter(word -> !dictionary.contains(word))
+        .collect(Collectors.toList());
+    boolean valid = invalidWords.isEmpty();
+    if (!valid) {
+      restoreTiles(mover.rack(), pending.placement().placements().values().stream()
+          .map(PlacedTile::tile)
+          .collect(Collectors.toList()));
+    }
+
+    state.resolveChallenge(valid);
+    if (valid) {
+      refillRack(mover.rack(), state.bag());
+      session.resetPasses();
+    }
+
+    WsMessage result = valid
+        ? new WsMessage(WsMessageType.MOVE_ACCEPTED, Map.of(
+            "player", mover.name(),
+            "score", pending.scoringResult().totalScore(),
+            "words", wordsToPayload(pending.scoringResult().words())))
+        : new WsMessage(WsMessageType.MOVE_REJECTED, Map.of(
+            "player", mover.name(),
+            "reason", "invalid_words",
+            "invalidWords", invalidWords));
+    WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
+    broadcast.add(result);
+    broadcast.add(turn);
+    broadcast.add(snapshotMessage(session));
+    if (valid) {
+      return checkOutEndgame(session, mover, broadcast);
+    }
+    return false;
   }
 
   private GameSession requireSession(String roomId) {

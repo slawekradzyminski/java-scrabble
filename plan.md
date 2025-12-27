@@ -212,6 +212,7 @@ Acceptance checks:
 - 2025-12-27: Phase 4: lobby UX polished and game layout tightened to fit in one screen.
 - 2025-12-27: Phase 6: AI move generator added with backend integration and lobby toggle for computer opponent.
 - 2025-12-27: Phase 6: AI self-play simulation test added (opt-in via system property).
+- 2025-12-27: Phase 3/6: AI now auto-challenges pending moves and resolves them during WS flow (tests added).
 
 ## Practical build/CI workflow in one repo
 

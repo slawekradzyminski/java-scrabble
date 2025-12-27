@@ -2,6 +2,8 @@ package com.scrabble.backend.game;
 
 import com.scrabble.engine.GameState;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 public final class GameSession {
@@ -9,6 +11,7 @@ public final class GameSession {
   private final GameState state;
   private final Instant createdAt;
   private final Set<String> botPlayers;
+  private final Map<String, Integer> exchangesByPlayer = new HashMap<>();
   private String status;
   private String winner;
   private int consecutivePasses;
@@ -63,5 +66,13 @@ public final class GameSession {
 
   public void incrementPasses() {
     consecutivePasses += 1;
+  }
+
+  public int exchangesUsed(String playerName) {
+    return exchangesByPlayer.getOrDefault(playerName, 0);
+  }
+
+  public void incrementExchanges(String playerName) {
+    exchangesByPlayer.merge(playerName, 1, Integer::sum);
   }
 }

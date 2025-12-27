@@ -1,5 +1,5 @@
 import React from 'react';
-import { useDraggable } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { RackTile } from '../types';
 import Tile from './Tile';
 
@@ -42,8 +42,9 @@ function DraggableTile({
 }
 
 export default function Rack({ tiles, onSelect }: RackProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'rack-drop' });
   return (
-    <div className="rack">
+    <div ref={setNodeRef} className={`rack ${isOver ? 'rack--drop-target' : ''}`}>
       {tiles.map((tile, index) => (
         <DraggableTile
           key={`${tile.letter ?? 'blank'}-${index}`}

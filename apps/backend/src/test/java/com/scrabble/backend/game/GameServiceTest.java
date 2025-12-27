@@ -121,6 +121,32 @@ class GameServiceTest {
   }
 
   @Test
+  void aiChallengesPendingMoveAutomatically() {
+    // given
+    RoomService roomService = new RoomService();
+    Dictionary dictionary = word -> true;
+    GameService gameService = new GameService(roomService, dictionary, new Random(15));
+
+    Room room = roomService.create("Room AI", "Alice", true);
+    GameSession session = gameService.start(room.id());
+    Player alice = session.state().players().get(0);
+    List<Tile> tiles = pickNonBlankTiles(alice.rack().tiles(), 2);
+
+    Map<Coordinate, PlacedTile> placements = Map.of(
+        Coordinate.parse("H8"), PlacedTile.fromTile(tiles.get(0)),
+        Coordinate.parse("H9"), PlacedTile.fromTile(tiles.get(1)));
+
+    // when
+    gameService.playTiles(room.id(), "Alice", placements);
+
+    // then
+    GameSnapshot snapshot = gameService.snapshot(room.id());
+    assertThat(snapshot.pendingMove()).isFalse();
+    assertThat(alice.rack().size()).isEqualTo(7);
+    assertThat(alice.score()).isPositive();
+  }
+
+  @Test
   void exchangeSwapsTilesAndAdvancesTurn() {
     // given
     RoomService roomService = new RoomService();
