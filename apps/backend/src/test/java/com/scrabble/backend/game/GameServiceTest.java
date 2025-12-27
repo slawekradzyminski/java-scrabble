@@ -1,5 +1,7 @@
 package com.scrabble.backend.game;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.scrabble.backend.lobby.Room;
 import com.scrabble.backend.lobby.RoomService;
 import com.scrabble.dictionary.Dictionary;
@@ -12,8 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class GameServiceTest {
 
@@ -99,6 +99,25 @@ class GameServiceTest {
     // then
     GameSnapshot snapshot = gameService.snapshot(room.id());
     assertThat(snapshot.currentPlayerIndex()).isEqualTo(1);
+  }
+
+  @Test
+  void aiOpponentPlaysAfterHumanTurn() {
+    // given
+    RoomService roomService = new RoomService();
+    Dictionary dictionary = word -> true;
+    GameService gameService = new GameService(roomService, dictionary, new Random(13));
+
+    Room room = roomService.create("Room AI", "Alice", true);
+    gameService.start(room.id());
+
+    // when
+    gameService.pass(room.id(), "Alice");
+
+    // then
+    GameSnapshot snapshot = gameService.snapshot(room.id());
+    assertThat(snapshot.currentPlayerIndex()).isEqualTo(0);
+    assertThat(snapshot.pendingMove()).isFalse();
   }
 
   @Test

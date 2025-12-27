@@ -64,6 +64,7 @@ export default function App() {
   });
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
   const [roomQuery, setRoomQuery] = useState(initialRoomId);
+  const [playWithAi, setPlayWithAi] = useState(false);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
   const [lobbyBusy, setLobbyBusy] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -134,7 +135,7 @@ export default function App() {
     setLobbyBusy(true);
     setLobbyError(null);
     try {
-      const created = await createRoom(roomName, player);
+      const created = await createRoom(roomName, player, playWithAi);
       setRoomId(created.id);
       setRoomName('');
       updateRoomUrl(created.id, created.name);
@@ -301,6 +302,14 @@ export default function App() {
                     value={roomName}
                     onChange={(event) => setRoomName(event.target.value)}
                   />
+                </label>
+                <label className="lobby-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={playWithAi}
+                    onChange={(event) => setPlayWithAi(event.target.checked)}
+                  />
+                  Add computer opponent
                 </label>
                 <button type="button" onClick={createAndConnect} disabled={lobbyBusy || !player || !roomName}>
                   Create &amp; connect

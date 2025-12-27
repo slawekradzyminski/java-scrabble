@@ -10,6 +10,6 @@ osps.txt
 backend.log
 frontend.log
 logs/
-
+reports/
 data/
 artifacts/

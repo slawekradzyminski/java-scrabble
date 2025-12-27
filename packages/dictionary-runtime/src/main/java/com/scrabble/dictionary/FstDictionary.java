@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.fst.FST.Arc;
+import org.apache.lucene.util.fst.FST.BytesReader;
 import org.apache.lucene.util.fst.FST;
 import org.apache.lucene.util.fst.NoOutputs;
 import org.apache.lucene.util.fst.Util;
@@ -40,6 +42,28 @@ public final class FstDictionary implements Dictionary {
     }
     try {
       return Util.get(fst, new BytesRef(normalized)) != null;
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to read FST", e);
+    }
+  }
+
+  @Override
+  public boolean containsPrefix(String prefix) {
+    String normalized = normalizer.normalize(prefix);
+    if (normalized.isEmpty()) {
+      return true;
+    }
+    BytesRef bytes = new BytesRef(normalized);
+    Arc<Object> arc = fst.getFirstArc(new Arc<>());
+    BytesReader reader = fst.getBytesReader();
+    try {
+      for (int i = 0; i < bytes.length; i++) {
+        int label = bytes.bytes[bytes.offset + i] & 0xFF;
+        if (fst.findTargetArc(label, arc, arc, reader) == null) {
+          return false;
+        }
+      }
+      return true;
     } catch (IOException e) {
       throw new IllegalStateException("Failed to read FST", e);
     }

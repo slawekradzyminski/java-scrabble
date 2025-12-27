@@ -210,6 +210,8 @@ Acceptance checks:
 - 2025-12-27: Phase 4: lobby UI added (room list/create/join/start) with REST wiring and tests; docs refreshed.
 - 2025-12-27: Phase 4: lobby split into separate view, board layout squared, and drag/drop context fixed.
 - 2025-12-27: Phase 4: lobby UX polished and game layout tightened to fit in one screen.
+- 2025-12-27: Phase 6: AI move generator added with backend integration and lobby toggle for computer opponent.
+- 2025-12-27: Phase 6: AI self-play simulation test added (opt-in via system property).
 
 ## Practical build/CI workflow in one repo
 

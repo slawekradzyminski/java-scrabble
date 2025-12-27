@@ -318,6 +318,20 @@ body {
   letter-spacing: 1px;
 }
 
+.lobby-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+}
+
+.lobby-checkbox input {
+  width: 16px;
+  height: 16px;
+}
+
 .lobby input {
   padding: 8px 12px;
   border-radius: 10px;

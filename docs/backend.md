@@ -6,7 +6,7 @@
 - `GameRegistry` stores in-memory sessions keyed by room id.
 
 ## REST endpoints
-- `POST /api/rooms` create a room.
+- `POST /api/rooms` create a room (optional `ai: true` adds a computer player).
 - `GET /api/rooms` list rooms.
 - `POST /api/rooms/{roomId}/join` join a room.
 - `POST /api/rooms/{roomId}/game/start` start a game.
@@ -31,3 +31,15 @@
 - Basic resign ends the game immediately.
 - Exchange requires enough tiles in bag.
 - CORS allows local frontend dev origins (localhost:5173, 127.0.0.1:5173).
+- AI turns auto-resolve as accepted (no challenge window).
+
+## AI self-play simulation
+Run a 2-AI simulation with the full FST dictionary from `artifacts/osps.fst`, logging each move to `reports/`:
+```
+./gradlew :packages:game-engine:test --tests com.scrabble.engine.ai.AiSelfPlaySimulationTest -Dai.simulation=true
+```
+
+Optional tuning:
+- `-Dai.simulation.maxCandidates=900`
+- `-Dai.simulation.maxTurns=400`
+- `-Dai.report.dir=reports`

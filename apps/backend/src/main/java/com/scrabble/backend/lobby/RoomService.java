@@ -16,9 +16,16 @@ public class RoomService {
   private final Map<String, Room> rooms = new ConcurrentHashMap<>();
 
   public Room create(String name, String owner) {
+    return create(name, owner, false);
+  }
+
+  public Room create(String name, String owner, boolean addAi) {
     String id = Long.toString(counter.incrementAndGet());
     Room room = new Room(id, name, Instant.now());
     room.addPlayer(owner);
+    if (addAi) {
+      room.addPlayer(uniqueBotName(room), true);
+    }
     rooms.put(id, room);
     return room;
   }
@@ -40,5 +47,17 @@ public class RoomService {
     }
     room.addPlayer(playerName);
     return room;
+  }
+
+  private String uniqueBotName(Room room) {
+    String base = "Computer";
+    if (!room.players().contains(base)) {
+      return base;
+    }
+    int index = 2;
+    while (room.players().contains(base + " " + index)) {
+      index++;
+    }
+    return base + " " + index;
   }
 }

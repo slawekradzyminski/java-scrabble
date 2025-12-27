@@ -24,7 +24,8 @@ public class RoomController {
 
   @PostMapping
   public RoomResponse create(@RequestBody CreateRoomRequest request) {
-    Room room = roomService.create(request.name(), request.owner());
+    boolean addAi = Boolean.TRUE.equals(request.ai());
+    Room room = roomService.create(request.name(), request.owner(), addAi);
     return RoomResponse.from(room);
   }
 
@@ -34,7 +35,7 @@ public class RoomController {
     return RoomResponse.from(room);
   }
 
-  public record CreateRoomRequest(String name, String owner) { }
+  public record CreateRoomRequest(String name, String owner, Boolean ai) { }
 
   public record JoinRoomRequest(String player) { }
 

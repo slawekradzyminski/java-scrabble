@@ -20,11 +20,11 @@ export async function listRooms(): Promise<RoomSummary[]> {
   return fetchJson<RoomSummary[]>(`${baseUrl()}/api/rooms`);
 }
 
-export async function createRoom(name: string, owner: string): Promise<RoomSummary> {
+export async function createRoom(name: string, owner: string, ai?: boolean): Promise<RoomSummary> {
   return fetchJson<RoomSummary>(`${baseUrl()}/api/rooms`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, owner })
+    body: JSON.stringify({ name, owner, ai: Boolean(ai) })
   });
 }
 

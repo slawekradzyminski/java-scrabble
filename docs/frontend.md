@@ -32,6 +32,7 @@ npm run test:coverage
 - Rack lives in the sidebar; drag tiles from rack to board cells.
 - Filter rooms by name or id in the lobby list, then join directly.
 - Game URLs include the room id and a name slug (ex: `/room/12-scrabble-night`).
+- The lobby create panel supports adding a computer opponent.
 - Use action buttons to play, pass, challenge, or resign.
 
 ## Drag & drop model

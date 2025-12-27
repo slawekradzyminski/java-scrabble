@@ -151,7 +151,28 @@ describe('lobby api', () => {
     // then
     expect(created).toEqual(response);
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/rooms'), expect.objectContaining({
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify({ name: 'Room 2', owner: 'Alice', ai: false })
+    }));
+  });
+
+  it('creates a room with ai enabled', async () => {
+    // given
+    const response = { id: '5', name: 'Room 5', players: ['Alice', 'Computer'] };
+    const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => response
+    });
+
+    // when
+    const created = await createRoom('Room 5', 'Alice', true);
+
+    // then
+    expect(created).toEqual(response);
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/rooms'), expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ name: 'Room 5', owner: 'Alice', ai: true })
     }));
   });
 

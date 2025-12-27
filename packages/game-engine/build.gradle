@@ -6,5 +6,25 @@ dependencies {
   testImplementation(platform(libs.junit.bom))
   testImplementation(libs.assertj.core)
   testImplementation(libs.junit.jupiter)
+  testImplementation(project(":packages:dictionary-runtime"))
   testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+test {
+  def simulation = System.getProperty("ai.simulation")
+  if (simulation != null) {
+    systemProperty "ai.simulation", simulation
+  }
+  def maxCandidates = System.getProperty("ai.simulation.maxCandidates")
+  if (maxCandidates != null) {
+    systemProperty "ai.simulation.maxCandidates", maxCandidates
+  }
+  def maxTurns = System.getProperty("ai.simulation.maxTurns")
+  if (maxTurns != null) {
+    systemProperty "ai.simulation.maxTurns", maxTurns
+  }
+  def reportDir = System.getProperty("ai.report.dir")
+  if (reportDir != null) {
+    systemProperty "ai.report.dir", reportDir
+  }
 }

@@ -1,5 +1,7 @@
 package com.scrabble.backend.lobby;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.scrabble.backend.BackendApplication;
 import com.scrabble.backend.TestDictionaryConfig;
 import java.util.Map;
@@ -38,6 +40,22 @@ class RoomControllerTest {
         .expectStatus().isOk()
         .expectBody()
         .jsonPath("$[?(@.name=='Room 1')]").exists();
+  }
+
+  @Test
+  void createsRoomWithAiOpponent() {
+    // given
+    WebTestClient client = buildClient();
+
+    // when + then
+    client.post()
+        .uri("/api/rooms")
+        .bodyValue(Map.of("name", "Room AI", "owner", "Alice", "ai", true))
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody()
+        .jsonPath("$.players.length()").isEqualTo(2)
+        .jsonPath("$.players[1]").value(value -> assertThat(value.toString()).startsWith("Computer"));
   }
 
   @Test

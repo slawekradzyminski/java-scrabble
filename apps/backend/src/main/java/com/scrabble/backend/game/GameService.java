@@ -22,9 +22,13 @@ import com.scrabble.engine.Scorer;
 import com.scrabble.engine.Tile;
 import com.scrabble.engine.TileBag;
 import com.scrabble.engine.Word;
+import com.scrabble.engine.ai.AiMove;
+import com.scrabble.engine.ai.AiMoveGenerator;
+import com.scrabble.engine.ai.WordDictionary;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -34,12 +38,25 @@ public class GameService {
   private final RoomService roomService;
   private final Dictionary dictionary;
   private final Random random;
+  private final WordDictionary wordDictionary;
+  private final AiMoveGenerator aiMoveGenerator = new AiMoveGenerator();
   private final GameRegistry registry = new GameRegistry();
 
   public GameService(RoomService roomService, Dictionary dictionary, Random random) {
     this.roomService = roomService;
     this.dictionary = dictionary;
     this.random = random;
+    this.wordDictionary = new WordDictionary() {
+      @Override
+      public boolean contains(String word) {
+        return dictionary.contains(word);
+      }
+
+      @Override
+      public boolean containsPrefix(String prefix) {
+        return dictionary.containsPrefix(prefix);
+      }
+    };
   }
 
   public GameSession start(String roomId) {
@@ -57,7 +74,9 @@ public class GameService {
       }
 
       GameState state = new GameState(BoardState.empty(), players, bag);
-      return registry.create(roomId, state);
+      GameSession session = registry.create(roomId, state, room.botPlayers());
+      applyAiTurns(session, new ArrayList<>());
+      return session;
     });
   }
 
@@ -95,7 +114,8 @@ public class GameService {
             "placements", placementsToPayload(placements)));
         WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
             GameSnapshot.from(session, session.status()).toPayload());
-        return GameCommandResult.broadcastOnly(proposed, snapshot);
+        GameCommandResult base = GameCommandResult.broadcastOnly(proposed, snapshot);
+        return withAiTurns(session, base);
       } catch (RuntimeException e) {
         restoreTiles(player.rack(), removed);
         if (e instanceof GameCommandException) {
@@ -149,7 +169,8 @@ public class GameService {
       WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
       WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
           GameSnapshot.from(session, session.status()).toPayload());
-      return GameCommandResult.broadcastOnly(result, turn, snapshot);
+      GameCommandResult base = GameCommandResult.broadcastOnly(result, turn, snapshot);
+      return withAiTurns(session, base);
     }
   }
 
@@ -165,7 +186,8 @@ public class GameService {
       WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
       WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
           GameSnapshot.from(session, session.status()).toPayload());
-      return GameCommandResult.broadcastOnly(turn, snapshot);
+      GameCommandResult base = GameCommandResult.broadcastOnly(turn, snapshot);
+      return withAiTurns(session, base);
     }
   }
 
@@ -194,7 +216,8 @@ public class GameService {
         WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
         WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
             GameSnapshot.from(session, session.status()).toPayload());
-        return GameCommandResult.broadcastOnly(turn, snapshot);
+        GameCommandResult base = GameCommandResult.broadcastOnly(turn, snapshot);
+        return withAiTurns(session, base);
       } catch (RuntimeException e) {
         restoreTiles(player.rack(), removed);
         if (e instanceof GameCommandException) {
@@ -219,6 +242,63 @@ public class GameService {
       WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
           GameSnapshot.from(session, session.status()).toPayload());
       return GameCommandResult.broadcastOnly(ended, snapshot);
+    }
+  }
+
+  private GameCommandResult withAiTurns(GameSession session, GameCommandResult base) {
+    List<WsMessage> broadcast = new ArrayList<>(base.broadcast());
+    applyAiTurns(session, broadcast);
+    return new GameCommandResult(broadcast, base.direct());
+  }
+
+  private void applyAiTurns(GameSession session, List<WsMessage> broadcast) {
+    int safety = 0;
+    while ("active".equals(session.status()) && session.state().pendingMove() == null) {
+      GameState state = session.state();
+      String current = state.players().get(state.currentPlayerIndex()).name();
+      if (!session.isBot(current)) {
+        return;
+      }
+      if (safety++ > 4) {
+        return;
+      }
+
+      Player bot = state.players().get(state.currentPlayerIndex());
+      Optional<AiMove> move = aiMoveGenerator.bestMove(state.board(), bot, Board.standard(), wordDictionary);
+      if (move.isEmpty()) {
+        state.advanceTurn();
+        broadcast.add(new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state)));
+        broadcast.add(snapshotMessage(session));
+        continue;
+      }
+
+      AiMove aiMove = move.get();
+      List<Tile> removed = new ArrayList<>();
+      try {
+        takePlacedTilesFromRack(bot.rack(), aiMove.placement().placements().values(), removed);
+        state.applyPendingMove(aiMove.placement(), aiMove.scoringResult());
+        WsMessage proposed = new WsMessage(WsMessageType.MOVE_PROPOSED, Map.of(
+            "player", bot.name(),
+            "score", aiMove.scoringResult().totalScore(),
+            "words", wordsToPayload(aiMove.scoringResult().words()),
+            "placements", placementsToPayload(aiMove.placement().placements())));
+        state.resolveChallenge(true);
+        refillRack(bot.rack(), state.bag());
+        WsMessage accepted = new WsMessage(WsMessageType.MOVE_ACCEPTED, Map.of(
+            "player", bot.name(),
+            "score", aiMove.scoringResult().totalScore(),
+            "words", wordsToPayload(aiMove.scoringResult().words())));
+        WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
+        broadcast.add(proposed);
+        broadcast.add(accepted);
+        broadcast.add(turn);
+        broadcast.add(snapshotMessage(session));
+      } catch (RuntimeException e) {
+        restoreTiles(bot.rack(), removed);
+        state.advanceTurn();
+        broadcast.add(new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state)));
+        broadcast.add(snapshotMessage(session));
+      }
     }
   }
 
@@ -319,6 +399,11 @@ public class GameService {
                 .map(Coordinate::format)
                 .collect(Collectors.toList())))
         .collect(Collectors.toList());
+  }
+
+  private WsMessage snapshotMessage(GameSession session) {
+    return new WsMessage(WsMessageType.STATE_SNAPSHOT,
+        GameSnapshot.from(session, session.status()).toPayload());
   }
 
   private String determineWinner(GameState state, int resigningIndex) {
