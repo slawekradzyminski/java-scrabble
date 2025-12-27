@@ -194,6 +194,8 @@ Acceptance checks:
 - 2025-12-27: Coverage enforcement (min 75% line) and docs/quality added.
 - 2025-12-27: Phase 1 tests expanded to validate dictionary metadata compatibility.
 - 2025-12-27: Dictionary CLI tests added; JMH benchmark added for runtime lookups.
+- 2025-12-27: Phase 1 completed (dictionary pipeline + tests + benchmark).
+- 2025-12-27: Phase 2 completed (engine scaffolding + move validation + scoring + challenge flow).
 
 ## Practical build/CI workflow in one repo
 
