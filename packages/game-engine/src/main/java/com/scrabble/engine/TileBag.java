@@ -42,4 +42,12 @@ public final class TileBag {
     }
     return drawn;
   }
+
+  public void addAll(List<Tile> tilesToAdd, Random random) {
+    if (tilesToAdd == null || tilesToAdd.isEmpty()) {
+      return;
+    }
+    tiles.addAll(tilesToAdd);
+    Collections.shuffle(tiles, random);
+  }
 }

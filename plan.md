@@ -199,6 +199,7 @@ Acceptance checks:
 - 2025-12-27: Phase 3 started (backend lobby and WebSocket scaffolding).
 - 2025-12-27: Phase 3: lobby REST + WebSocket placeholder implemented with tests.
 - 2025-12-27: Phase 3: WebSocket handler parsing + start/stop scripts + e2e smoke added.
+- 2025-12-27: Phase 3: WebSocket commands wired to game engine (play/pass/exchange/challenge/resign), room broadcast hub, expanded snapshots, and backend coverage restored.
 
 ## Practical build/CI workflow in one repo
 

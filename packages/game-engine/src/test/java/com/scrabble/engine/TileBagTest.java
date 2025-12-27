@@ -1,6 +1,7 @@
 package com.scrabble.engine;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
@@ -33,5 +34,17 @@ class TileBagTest {
     TileBag bag = TileBag.standard(new Random(1));
     assertEquals(100, bag.draw(200).size());
     assertTrue(bag.isEmpty());
+  }
+
+  @Test
+  void addAllRestoresTilesToBag() {
+    Random random = new Random(4);
+    TileBag bag = TileBag.standard(random);
+    List<Tile> drawn = bag.draw(3);
+    int remaining = bag.size();
+
+    bag.addAll(drawn, random);
+
+    assertEquals(remaining + 3, bag.size());
   }
 }
