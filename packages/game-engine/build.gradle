@@ -19,6 +19,18 @@ test {
   if (maxCandidates != null) {
     systemProperty "ai.simulation.maxCandidates", maxCandidates
   }
+  def games = System.getProperty("ai.simulation.games")
+  if (games != null) {
+    systemProperty "ai.simulation.games", games
+  }
+  def minScore = System.getProperty("ai.simulation.minScore")
+  if (minScore != null) {
+    systemProperty "ai.simulation.minScore", minScore
+  }
+  def seed = System.getProperty("ai.simulation.seed")
+  if (seed != null) {
+    systemProperty "ai.simulation.seed", seed
+  }
   def maxTurns = System.getProperty("ai.simulation.maxTurns")
   if (maxTurns != null) {
     systemProperty "ai.simulation.maxTurns", maxTurns

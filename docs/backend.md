@@ -30,6 +30,8 @@
 - In-memory only, no persistence.
 - Basic resign ends the game immediately.
 - Exchange requires enough tiles in bag.
+- Endgame triggers on 4 consecutive pass/exchange turns, or when a player goes out with an empty bag.
+- Rack penalties are applied on endgame; going-out player gains opponents' rack points.
 - CORS allows local frontend dev origins (localhost:5173, 127.0.0.1:5173).
 - AI turns auto-resolve as accepted (no challenge window).
 
@@ -42,4 +44,7 @@ Run a 2-AI simulation with the full FST dictionary from `artifacts/osps.fst`, lo
 Optional tuning:
 - `-Dai.simulation.maxCandidates=900`
 - `-Dai.simulation.maxTurns=400`
+- `-Dai.simulation.games=10`
+- `-Dai.simulation.minScore=700`
+- `-Dai.simulation.seed=12345`
 - `-Dai.report.dir=reports`

@@ -46,6 +46,9 @@ export class GameSocket {
   private socket: WebSocket | null = null;
   private snapshotListener: SnapshotListener | null = null;
   private eventListener: EventListener | null = null;
+  private openListener: (() => void) | null = null;
+  private closeListener: (() => void) | null = null;
+  private errorListener: (() => void) | null = null;
   private heartbeat: number | null = null;
 
   connect(roomId: string, player: string) {
@@ -54,10 +57,16 @@ export class GameSocket {
     const url = new URL('/ws', base);
     url.searchParams.set('roomId', roomId);
     url.searchParams.set('player', player);
+    if (import.meta.env.DEV) {
+      console.info('WS connect', url.toString());
+    }
     this.socket = new WebSocket(url.toString());
 
     this.socket.onmessage = (event) => {
       const parsed = JSON.parse(event.data) as WsMessage;
+      if (import.meta.env.DEV) {
+        console.info('WS message', parsed.type);
+      }
       if (parsed.type === 'STATE_SNAPSHOT') {
         this.snapshotListener?.(parsed.payload as unknown as GameSnapshot);
       }
@@ -65,6 +74,10 @@ export class GameSocket {
     };
 
     this.socket.onopen = () => {
+      if (import.meta.env.DEV) {
+        console.info('WS open');
+      }
+      this.openListener?.();
       this.send({ type: 'SYNC', payload: { player } });
       this.heartbeat = window.setInterval(() => this.send({ type: 'PING', payload: {} }), 15000);
     };
@@ -74,12 +87,26 @@ export class GameSocket {
         window.clearInterval(this.heartbeat);
         this.heartbeat = null;
       }
+      if (import.meta.env.DEV) {
+        console.info('WS close');
+      }
+      this.closeListener?.();
+    };
+
+    this.socket.onerror = () => {
+      if (import.meta.env.DEV) {
+        console.info('WS error');
+      }
+      this.errorListener?.();
     };
   }
 
   send(message: { type: string; payload: Record<string, unknown> }) {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       return;
+    }
+    if (import.meta.env.DEV) {
+      console.info('WS send', message.type);
     }
     this.socket.send(JSON.stringify(message));
   }
@@ -90,6 +117,18 @@ export class GameSocket {
 
   onEvent(listener: EventListener) {
     this.eventListener = listener;
+  }
+
+  onOpen(listener: () => void) {
+    this.openListener = listener;
+  }
+
+  onClose(listener: () => void) {
+    this.closeListener = listener;
+  }
+
+  onError(listener: () => void) {
+    this.errorListener = listener;
   }
 
   disconnect() {

@@ -162,6 +162,72 @@ class GameServiceTest {
     assertThat(snapshot.winner()).isEqualTo("Bob");
   }
 
+  @Test
+  void outMoveEndsGameAndAppliesRackBonus() {
+    // given
+    RoomService roomService = new RoomService();
+    Dictionary dictionary = word -> true;
+    GameService gameService = new GameService(roomService, dictionary, new Random(17));
+
+    Room room = roomService.create("Room", "Alice");
+    roomService.join(room.id(), "Bob");
+    GameSession session = gameService.start(room.id());
+    Player alice = session.state().players().get(0);
+    Player bob = session.state().players().get(1);
+
+    session.state().bag().draw(session.state().bag().size());
+
+    List<Tile> rackTiles = new ArrayList<>(alice.rack().tiles());
+    List<Tile> playTiles = pickNonBlankTiles(rackTiles, 2);
+    List<Tile> keep = new ArrayList<>(playTiles);
+    for (Tile tile : new ArrayList<>(alice.rack().tiles())) {
+      if (keep.contains(tile)) {
+        keep.remove(tile);
+        continue;
+      }
+      alice.rack().remove(tile);
+    }
+
+    Map<Coordinate, PlacedTile> placements = Map.of(
+        Coordinate.parse("H8"), PlacedTile.fromTile(playTiles.get(0)),
+        Coordinate.parse("H9"), PlacedTile.fromTile(playTiles.get(1)));
+
+    // when
+    gameService.playTiles(room.id(), "Alice", placements);
+    gameService.challenge(room.id(), "Bob");
+
+    // then
+    GameSnapshot snapshot = gameService.snapshot(room.id());
+    assertThat(snapshot.status()).isEqualTo("ended");
+    assertThat(snapshot.winner()).isEqualTo("Alice");
+    assertThat(alice.score()).isGreaterThan(bob.score());
+  }
+
+  @Test
+  void fourPassesEndGameWithRackPenalties() {
+    // given
+    RoomService roomService = new RoomService();
+    Dictionary dictionary = word -> true;
+    GameService gameService = new GameService(roomService, dictionary, new Random(21));
+
+    Room room = roomService.create("Room", "Alice");
+    roomService.join(room.id(), "Bob");
+    gameService.start(room.id());
+
+    // when
+    gameService.pass(room.id(), "Alice");
+    gameService.pass(room.id(), "Bob");
+    gameService.pass(room.id(), "Alice");
+    gameService.pass(room.id(), "Bob");
+
+    // then
+    GameSnapshot snapshot = gameService.snapshot(room.id());
+    assertThat(snapshot.status()).isEqualTo("ended");
+    assertThat(snapshot.winner()).isNotNull();
+    assertThat(snapshot.players()).allSatisfy(player ->
+        assertThat(((Number) player.get("score")).intValue()).isLessThanOrEqualTo(0));
+  }
+
   private List<Tile> pickNonBlankTiles(List<Tile> tiles, int count) {
     List<Tile> picked = new ArrayList<>();
     for (Tile tile : tiles) {

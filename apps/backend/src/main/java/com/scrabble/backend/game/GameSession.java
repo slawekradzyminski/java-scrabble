@@ -11,6 +11,7 @@ public final class GameSession {
   private final Set<String> botPlayers;
   private String status;
   private String winner;
+  private int consecutivePasses;
 
   GameSession(String roomId, GameState state, Instant createdAt, String status, Set<String> botPlayers) {
     this.roomId = roomId;
@@ -50,5 +51,17 @@ public final class GameSession {
 
   public void setWinner(String winner) {
     this.winner = winner;
+  }
+
+  public int consecutivePasses() {
+    return consecutivePasses;
+  }
+
+  public void resetPasses() {
+    consecutivePasses = 0;
+  }
+
+  public void incrementPasses() {
+    consecutivePasses += 1;
   }
 }

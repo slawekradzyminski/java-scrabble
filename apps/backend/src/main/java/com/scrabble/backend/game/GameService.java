@@ -35,6 +35,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class GameService {
+  private static final int MAX_CONSECUTIVE_PASSES = 4;
   private final RoomService roomService;
   private final Dictionary dictionary;
   private final Random random;
@@ -154,6 +155,7 @@ public class GameService {
       state.resolveChallenge(valid);
       if (valid) {
         refillRack(mover.rack(), state.bag());
+        session.resetPasses();
       }
 
       WsMessage result = valid
@@ -169,7 +171,11 @@ public class GameService {
       WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
       WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
           GameSnapshot.from(session, session.status()).toPayload());
-      GameCommandResult base = GameCommandResult.broadcastOnly(result, turn, snapshot);
+      List<WsMessage> broadcast = new ArrayList<>(List.of(result, turn, snapshot));
+      if (valid) {
+        checkOutEndgame(session, mover, broadcast);
+      }
+      GameCommandResult base = new GameCommandResult(broadcast, List.of());
       return withAiTurns(session, base);
     }
   }
@@ -183,10 +189,13 @@ public class GameService {
       int playerIndex = requirePlayerIndex(state, playerName);
       ensureCurrentPlayer(state, playerIndex);
       state.advanceTurn();
+      session.incrementPasses();
       WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
       WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
           GameSnapshot.from(session, session.status()).toPayload());
-      GameCommandResult base = GameCommandResult.broadcastOnly(turn, snapshot);
+      List<WsMessage> broadcast = new ArrayList<>(List.of(turn, snapshot));
+      checkPassEndgame(session, broadcast);
+      GameCommandResult base = new GameCommandResult(broadcast, List.of());
       return withAiTurns(session, base);
     }
   }
@@ -213,10 +222,13 @@ public class GameService {
         List<Tile> drawn = state.bag().draw(tiles.size());
         player.rack().addAll(drawn);
         state.advanceTurn();
+        session.incrementPasses();
         WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
         WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
             GameSnapshot.from(session, session.status()).toPayload());
-        GameCommandResult base = GameCommandResult.broadcastOnly(turn, snapshot);
+        List<WsMessage> broadcast = new ArrayList<>(List.of(turn, snapshot));
+        checkPassEndgame(session, broadcast);
+        GameCommandResult base = new GameCommandResult(broadcast, List.of());
         return withAiTurns(session, base);
       } catch (RuntimeException e) {
         restoreTiles(player.rack(), removed);
@@ -267,8 +279,12 @@ public class GameService {
       Optional<AiMove> move = aiMoveGenerator.bestMove(state.board(), bot, Board.standard(), wordDictionary);
       if (move.isEmpty()) {
         state.advanceTurn();
+        session.incrementPasses();
         broadcast.add(new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state)));
         broadcast.add(snapshotMessage(session));
+        if (checkPassEndgame(session, broadcast)) {
+          return;
+        }
         continue;
       }
 
@@ -284,6 +300,7 @@ public class GameService {
             "placements", placementsToPayload(aiMove.placement().placements())));
         state.resolveChallenge(true);
         refillRack(bot.rack(), state.bag());
+        session.resetPasses();
         WsMessage accepted = new WsMessage(WsMessageType.MOVE_ACCEPTED, Map.of(
             "player", bot.name(),
             "score", aiMove.scoringResult().totalScore(),
@@ -293,11 +310,18 @@ public class GameService {
         broadcast.add(accepted);
         broadcast.add(turn);
         broadcast.add(snapshotMessage(session));
+        if (checkOutEndgame(session, bot, broadcast)) {
+          return;
+        }
       } catch (RuntimeException e) {
         restoreTiles(bot.rack(), removed);
         state.advanceTurn();
+        session.incrementPasses();
         broadcast.add(new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state)));
         broadcast.add(snapshotMessage(session));
+        if (checkPassEndgame(session, broadcast)) {
+          return;
+        }
       }
     }
   }
@@ -373,6 +397,80 @@ public class GameService {
     if (missing > 0) {
       rack.addAll(bag.draw(missing));
     }
+  }
+
+  private boolean checkOutEndgame(GameSession session, Player mover, List<WsMessage> broadcast) {
+    GameState state = session.state();
+    if (!state.bag().isEmpty()) {
+      return false;
+    }
+    if (mover.rack().size() != 0) {
+      return false;
+    }
+    applyOutBonus(state, mover);
+    session.setStatus("ended");
+    session.setWinner(mover.name());
+    broadcast.add(new WsMessage(WsMessageType.GAME_ENDED, Map.of("winner", mover.name())));
+    broadcast.add(snapshotMessage(session));
+    return true;
+  }
+
+  private boolean checkPassEndgame(GameSession session, List<WsMessage> broadcast) {
+    if (session.consecutivePasses() < MAX_CONSECUTIVE_PASSES) {
+      return false;
+    }
+    applyPassPenalties(session.state());
+    session.setStatus("ended");
+    session.setWinner(determineWinnerByScore(session.state()));
+    broadcast.add(new WsMessage(WsMessageType.GAME_ENDED, Map.of("winner", session.winner())));
+    broadcast.add(snapshotMessage(session));
+    return true;
+  }
+
+  private void applyOutBonus(GameState state, Player winner) {
+    int bonus = 0;
+    for (Player player : state.players()) {
+      if (player == winner) {
+        continue;
+      }
+      int penalty = rackPoints(player);
+      if (penalty > 0) {
+        player.addScore(-penalty);
+        bonus += penalty;
+      }
+    }
+    if (bonus > 0) {
+      winner.addScore(bonus);
+    }
+  }
+
+  private void applyPassPenalties(GameState state) {
+    for (Player player : state.players()) {
+      int penalty = rackPoints(player);
+      if (penalty > 0) {
+        player.addScore(-penalty);
+      }
+    }
+  }
+
+  private int rackPoints(Player player) {
+    int total = 0;
+    for (Tile tile : player.rack().tiles()) {
+      total += tile.points();
+    }
+    return total;
+  }
+
+  private String determineWinnerByScore(GameState state) {
+    String winner = null;
+    int best = Integer.MIN_VALUE;
+    for (Player player : state.players()) {
+      if (player.score() > best) {
+        best = player.score();
+        winner = player.name();
+      }
+    }
+    return winner;
   }
 
   private Map<String, Object> currentTurnPayload(GameState state) {

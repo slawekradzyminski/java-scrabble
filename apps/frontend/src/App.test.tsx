@@ -9,6 +9,7 @@ const joinRoomMock = vi.fn();
 const createRoomMock = vi.fn();
 const startGameMock = vi.fn();
 let snapshotHandler: ((snapshot: unknown) => void) | null = null;
+let openHandler: (() => void) | null = null;
 
 const waitForLobbyReady = async () => {
   await waitFor(() => expect(listRoomsMock).toHaveBeenCalled());
@@ -29,9 +30,15 @@ vi.mock('./api', () => {
         snapshotHandler = handler;
       }
       onEvent() {}
+      onOpen(handler: () => void) {
+        openHandler = handler;
+      }
+      onClose() {}
+      onError() {}
       disconnect() {}
       connect(roomId: string, player: string) {
         connectMock(roomId, player);
+        openHandler?.();
       }
       send(message: unknown) {
         sendMock(message);

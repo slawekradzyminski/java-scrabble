@@ -6,6 +6,7 @@ import Rack from './components/Rack';
 import Tile from './components/Tile';
 import type { BoardTile, GameSnapshot, RackTile, RoomSummary, WsMessage } from './types';
 import { createRoom, GameSocket, joinRoom, listRooms, startGame } from './api';
+import { cellId } from './utils';
 
 const emptySnapshot: GameSnapshot = {
   roomId: '',
@@ -67,7 +68,10 @@ export default function App() {
   const [playWithAi, setPlayWithAi] = useState(false);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
   const [lobbyBusy, setLobbyBusy] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [socketOpen, setSocketOpen] = useState(false);
+  const [joinedRoomId, setJoinedRoomId] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<GameSnapshot>(emptySnapshot);
   const [placements, setPlacements] = useState<PlacementState>({});
   const [activeTile, setActiveTile] = useState<RackTile | null>(null);
@@ -113,6 +117,14 @@ export default function App() {
 
   const connectSocket = (targetRoomId: string, targetPlayer: string) => {
     socket.disconnect();
+    setConnected(false);
+    setSocketOpen(false);
+    setSnapshot({ ...emptySnapshot, roomId: targetRoomId });
+    setPlacements({});
+    setActiveTile(null);
+    socket.onOpen(() => setSocketOpen(true));
+    socket.onClose(() => setSocketOpen(false));
+    socket.onError(() => setSocketOpen(false));
     socket.onSnapshot((next) => {
       setSnapshot(next);
       setPlacements({});
@@ -133,10 +145,12 @@ export default function App() {
       return;
     }
     setLobbyBusy(true);
+    setConnecting(true);
     setLobbyError(null);
     try {
       const created = await createRoom(roomName, player, playWithAi);
       setRoomId(created.id);
+      setJoinedRoomId(created.id);
       setRoomName('');
       updateRoomUrl(created.id, created.name);
       connectSocket(created.id, player);
@@ -145,6 +159,7 @@ export default function App() {
       setLobbyError(error instanceof Error ? error.message : 'Failed to create room');
     } finally {
       setLobbyBusy(false);
+      setConnecting(false);
     }
   };
 
@@ -157,9 +172,11 @@ export default function App() {
     }
     setRoomId(targetRoomId);
     setLobbyBusy(true);
+    setConnecting(true);
     setLobbyError(null);
     try {
       const joined = await joinRoom(targetRoomId, player);
+      setJoinedRoomId(targetRoomId);
       connectSocket(targetRoomId, player);
       updateRoomUrl(targetRoomId, targetRoomName ?? joined.name);
       await refreshRooms();
@@ -167,8 +184,41 @@ export default function App() {
       setLobbyError(error instanceof Error ? error.message : 'Failed to join room');
     } finally {
       setLobbyBusy(false);
+      setConnecting(false);
     }
   };
+
+  useEffect(() => {
+    if (!roomId || !player || connected || connecting || joinedRoomId === roomId) {
+      return;
+    }
+    let active = true;
+    setConnecting(true);
+    setLobbyError(null);
+    joinRoom(roomId, player)
+      .then((joined) => {
+        if (!active) {
+          return;
+        }
+        setJoinedRoomId(roomId);
+        connectSocket(roomId, player);
+        updateRoomUrl(roomId, joined.name);
+      })
+      .catch((error) => {
+        if (!active) {
+          return;
+        }
+        setLobbyError(error instanceof Error ? error.message : 'Failed to join room');
+      })
+      .finally(() => {
+        if (active) {
+          setConnecting(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [roomId, player, connected, connecting]);
 
   const startRoomGame = async () => {
     if (!roomId) {
@@ -189,6 +239,14 @@ export default function App() {
   const handleDragStart = (event: DragStartEvent) => {
     const rackIndex = parseInt(String(event.active.id).replace('rack-', ''), 10);
     setActiveTile(rackTiles[rackIndex] ?? null);
+  };
+
+  const handleTileSelect = (tile: RackTile) => {
+    setActiveTile(tile);
+  };
+
+  const handleCellClick = (id: string) => {
+    applyDrop(activeTile, cellId(id));
   };
 
   const applyDrop = (tile: RackTile | null, dropTarget: string | null) => {
@@ -265,7 +323,7 @@ export default function App() {
     return room.name.toLowerCase().includes(query) || room.id.toLowerCase().includes(query);
   });
 
-  if (!connected) {
+  if (!roomId || !player) {
     return (
       <div className="app">
         <header className="topbar">
@@ -353,6 +411,7 @@ export default function App() {
                     ))
                   )}
                 </ul>
+                {lobbyError && <p className="error">{lobbyError}</p>}
               </div>
             </div>
           </section>
@@ -379,14 +438,14 @@ export default function App() {
         <main className="layout">
           <section className="game-column">
             <div className="board-wrap">
-              <Board tiles={snapshot.board} placements={placements} />
+              <Board tiles={snapshot.board} placements={placements} onCellClick={handleCellClick} />
               <DragOverlay>
                 {activeTile ? <Tile tile={activeTile} dragging /> : null}
               </DragOverlay>
             </div>
             <div className="panel rack-panel">
               <h2>Your rack</h2>
-              <Rack tiles={rackTiles} />
+              <Rack tiles={rackTiles} onSelect={handleTileSelect} />
               <div className="rack-hint">Drag tiles onto the board. Snapshots are scoped to the connected player.</div>
               {import.meta.env.MODE === 'test' && (
                 <div className="test-controls">
@@ -428,7 +487,9 @@ export default function App() {
               <div className="info-section">
                 <div className="info-header">
                   <h2>Game</h2>
-                  <button type="button" onClick={startRoomGame} disabled={lobbyBusy || !roomId}>Start</button>
+                  <button type="button" onClick={startRoomGame} disabled={lobbyBusy || !roomId || !socketOpen}>
+                    Start
+                  </button>
                 </div>
                 <div className="info-meta">
                   <div>
@@ -441,7 +502,11 @@ export default function App() {
                   </div>
                   <div>
                     <span>Status</span>
-                    <strong>{snapshot.status}</strong>
+                    <strong>
+                      {connected
+                        ? snapshot.status
+                        : (socketOpen ? 'connected' : (connecting ? 'connecting' : 'not_connected'))}
+                    </strong>
                   </div>
                   <div>
                     <span>Bag</span>

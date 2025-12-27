@@ -5,9 +5,18 @@ import Tile from './Tile';
 
 interface RackProps {
   tiles: RackTile[];
+  onSelect?: (tile: RackTile, index: number) => void;
 }
 
-function DraggableTile({ tile, index }: { tile: RackTile; index: number }) {
+function DraggableTile({
+  tile,
+  index,
+  onSelect
+}: {
+  tile: RackTile;
+  index: number;
+  onSelect?: (tile: RackTile, index: number) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `rack-${index}`
   });
@@ -25,17 +34,23 @@ function DraggableTile({ tile, index }: { tile: RackTile; index: number }) {
       {...attributes}
       type="button"
       aria-label={`Tile ${tile.letter ?? 'blank'}`}
+      onClick={() => onSelect?.(tile, index)}
     >
       <Tile tile={tile} dragging={isDragging} />
     </button>
   );
 }
 
-export default function Rack({ tiles }: RackProps) {
+export default function Rack({ tiles, onSelect }: RackProps) {
   return (
     <div className="rack">
       {tiles.map((tile, index) => (
-        <DraggableTile key={`${tile.letter ?? 'blank'}-${index}`} tile={tile} index={index} />
+        <DraggableTile
+          key={`${tile.letter ?? 'blank'}-${index}`}
+          tile={tile}
+          index={index}
+          onSelect={onSelect}
+        />
       ))}
     </div>
   );

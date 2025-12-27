@@ -7,6 +7,7 @@ import { buildBoardIds, cellId } from '../utils';
 interface BoardProps {
   tiles: BoardTile[];
   placements: Record<string, BoardTile>;
+  onCellClick?: (id: string) => void;
 }
 
 const premiumMap: Record<string, string> = {
@@ -73,11 +74,23 @@ const premiumMap: Record<string, string> = {
   O12: 'dl'
 };
 
-function DroppableCell({ id, tile }: { id: string; tile?: BoardTile }) {
+function DroppableCell({
+  id,
+  tile,
+  onClick
+}: {
+  id: string;
+  tile?: BoardTile;
+  onClick?: (id: string) => void;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: cellId(id) });
   const premium = premiumMap[id];
   return (
-    <div ref={setNodeRef} className={`board-cell ${premium ? `board-cell--${premium}` : ''} ${isOver ? 'board-cell--highlight' : ''}`}>
+    <div
+      ref={setNodeRef}
+      className={`board-cell ${premium ? `board-cell--${premium}` : ''} ${isOver ? 'board-cell--highlight' : ''}`}
+      onClick={() => onClick?.(id)}
+    >
       <span className="board-cell__label">{id}</span>
       {premium && <span className="board-cell__premium">{premium.toUpperCase()}</span>}
       {tile && <Tile tile={{
@@ -89,7 +102,7 @@ function DroppableCell({ id, tile }: { id: string; tile?: BoardTile }) {
   );
 }
 
-export default function Board({ tiles, placements }: BoardProps) {
+export default function Board({ tiles, placements, onCellClick }: BoardProps) {
   const ids = buildBoardIds();
   const byId = new Map<string, BoardTile>();
   tiles.forEach((tile) => byId.set(tile.coordinate, tile));
@@ -98,7 +111,7 @@ export default function Board({ tiles, placements }: BoardProps) {
   return (
     <div className="board">
       {ids.map((id) => (
-        <DroppableCell key={id} id={id} tile={byId.get(id)} />
+        <DroppableCell key={id} id={id} tile={byId.get(id)} onClick={onCellClick} />
       ))}
     </div>
   );
