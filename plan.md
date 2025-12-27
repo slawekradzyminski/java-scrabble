@@ -202,6 +202,9 @@ Acceptance checks:
 - 2025-12-27: Phase 3: WebSocket commands wired to game engine (play/pass/exchange/challenge/resign), room broadcast hub, expanded snapshots, and backend coverage restored.
 - 2025-12-27: Phase 3: REST command endpoint added for curl-based gameplay; parser shared with WebSocket; e2e curl flow verified.
 - 2025-12-27: Phase 3: Per-player snapshots (rack visibility gated by player) and enum-based WS message types introduced; test structure standardized.
+- 2025-12-27: Phase 4 started (Vite + React + TS scaffold, drag-and-drop board + rack, docs updated with frontend/back-end summary).
+- 2025-12-27: Phase 4: frontend scripts added, lint + Vitest coverage configured, RTL component tests added, docs/quality updated.
+- 2025-12-27: Phase 4: frontend test coverage enforced, App/api tests added, CI updated to run frontend lint/tests/coverage.
 
 ## Practical build/CI workflow in one repo
 

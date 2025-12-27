@@ -84,3 +84,20 @@ WebSocket endpoint (placeholder):
 ```
 ws://localhost:8080/ws
 ```
+
+## Run frontend
+
+```
+cd apps/frontend
+npm install
+npm run dev
+```
+
+## Frontend checks
+
+```
+cd apps/frontend
+npm run lint
+npm run test
+npm run test:coverage
+```

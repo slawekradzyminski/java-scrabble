@@ -8,6 +8,7 @@
 - Maintain minimum line coverage of 75% per Java module.
 - If coverage drops below 75%, add focused tests to restore it.
 - Coverage enforcement is wired via `jacocoTestCoverageVerification` and `check`.
+- Frontend coverage is enforced via Vitest thresholds (see `apps/frontend/vitest.config.ts`).
 
 ## Documentation hygiene
 - Keep `plan.md` updated with progress notes.

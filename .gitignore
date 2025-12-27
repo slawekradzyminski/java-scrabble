@@ -6,7 +6,9 @@ out/
 .DS_Store
 osps.txt
 .server.pid
+.frontend.pid
 backend.log
+frontend.log
 logs/
 
 data/
