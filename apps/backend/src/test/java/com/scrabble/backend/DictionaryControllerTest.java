@@ -6,7 +6,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -62,6 +61,17 @@ class DictionaryControllerTest {
         .expectStatus().isOk()
         .expectBody()
         .jsonPath("$.contains").isEqualTo(false);
+  }
+
+  @Test
+  void healthEndpointIsUp() {
+    WebTestClient client = buildClient();
+    client.get()
+        .uri("/actuator/health")
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody()
+        .jsonPath("$.status").isEqualTo("UP");
   }
 
   private static Path findRepoFile(String filename) {

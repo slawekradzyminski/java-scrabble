@@ -10,7 +10,7 @@ import java.nio.file.Path;
 public final class DictionaryMetaIO {
   private static final ObjectMapper MAPPER = buildMapper();
 
-  private DictionaryMetaIO() {}
+  private DictionaryMetaIO() { }
 
   public static DictionaryMeta read(Path path) throws IOException {
     return MAPPER.readValue(Files.readAllBytes(path), DictionaryMeta.class);

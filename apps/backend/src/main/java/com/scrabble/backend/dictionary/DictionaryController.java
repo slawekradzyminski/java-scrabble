@@ -20,5 +20,5 @@ public class DictionaryController {
     return new DictionaryResponse(word, dictionary.contains(word));
   }
 
-  public record DictionaryResponse(String word, boolean contains) {}
+  public record DictionaryResponse(String word, boolean contains) { }
 }

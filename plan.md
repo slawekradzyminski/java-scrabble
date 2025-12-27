@@ -175,6 +175,9 @@ Acceptance checks:
 - You can restart the backend and keep finished games.
 - You can scale to multiple instances (if needed) without breaking rooms.
 
+## Progress updates
+- 2025-12-27: Phase 0 completed (Gradle multi-module, tests, Checkstyle, CI, health endpoint).
+
 ## Practical build/CI workflow in one repo
 
 ### Local dev

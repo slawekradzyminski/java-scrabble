@@ -23,6 +23,18 @@ Metadata is generated alongside the FST as `artifacts/osps.fst.meta.json`.
 ./gradlew test
 ```
 
+## Checks and coverage
+
+```bash
+./gradlew check
+```
+
+To generate coverage reports:
+
+```bash
+./gradlew jacocoTestReport
+```
+
 ## Run backend
 
 ```bash
@@ -33,4 +45,10 @@ Example dictionary call:
 
 ```bash
 curl "http://localhost:8080/api/dictionary/contains?word=zajawiałeś"
+```
+
+Health endpoint:
+
+```bash
+curl "http://localhost:8080/actuator/health"
 ```

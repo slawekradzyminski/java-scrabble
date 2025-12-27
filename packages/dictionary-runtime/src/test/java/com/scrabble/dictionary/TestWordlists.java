@@ -3,7 +3,7 @@ package com.scrabble.dictionary;
 import java.nio.file.Path;
 
 final class TestWordlists {
-  private TestWordlists() {}
+  private TestWordlists() { }
 
   static Path findRepoFile(String filename) {
     Path current = Path.of("").toAbsolutePath();

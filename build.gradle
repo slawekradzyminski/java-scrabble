@@ -25,3 +25,34 @@ subprojects {
     useJUnitPlatform()
   }
 }
+
+subprojects {
+  pluginManager.withPlugin('java') {
+    apply plugin: 'checkstyle'
+    apply plugin: 'jacoco'
+
+    checkstyle {
+      toolVersion = '12.3.0'
+      configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+    }
+
+    tasks.withType(Checkstyle).configureEach {
+      reports {
+        xml.required = false
+        html.required = true
+      }
+    }
+
+    jacoco {
+      toolVersion = '0.8.14'
+    }
+
+    tasks.named('jacocoTestReport', JacocoReport).configure {
+      dependsOn tasks.named('test')
+      reports {
+        xml.required = true
+        html.required = true
+      }
+    }
+  }
+}

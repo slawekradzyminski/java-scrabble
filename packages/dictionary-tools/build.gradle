@@ -23,5 +23,8 @@ tasks.register('compileOsps', JavaExec) {
   def inputPath = project.findProperty('ospsInput') ?: 'osps_shortened.txt'
   def outputPath = project.findProperty('ospsOutput') ?: 'artifacts/osps.fst'
 
-  args 'compile', '--input', inputPath, '--output', outputPath
+  def resolvedInput = rootProject.file(inputPath).absolutePath
+  def resolvedOutput = rootProject.file(outputPath).absolutePath
+
+  args 'compile', '--input', resolvedInput, '--output', resolvedOutput
 }

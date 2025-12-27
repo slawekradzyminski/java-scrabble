@@ -8,4 +8,4 @@ public record DictionaryMeta(
     @JsonProperty("normalisation") String normalisation,
     @JsonProperty("wordCount") long wordCount,
     @JsonProperty("sourceSha256") String sourceSha256,
-    @JsonProperty("createdAt") Instant createdAt) {}
+    @JsonProperty("createdAt") Instant createdAt) { }
