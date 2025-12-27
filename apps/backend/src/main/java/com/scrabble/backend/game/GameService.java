@@ -234,6 +234,7 @@ public class GameService {
           "resigned", playerName));
       WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
           GameSnapshot.from(session, session.status()).toPayload());
+      session.recordHistory(ended);
       return GameCommandResult.broadcastOnly(ended, snapshot);
     }
   }
@@ -241,6 +242,7 @@ public class GameService {
   private GameCommandResult withAiTurns(GameSession session, GameCommandResult base) {
     List<WsMessage> broadcast = new ArrayList<>(base.broadcast());
     applyAiTurns(session, broadcast);
+    recordHistory(session, broadcast);
     return new GameCommandResult(broadcast, base.direct());
   }
 
@@ -469,6 +471,12 @@ public class GameService {
   private WsMessage snapshotMessage(GameSession session) {
     return new WsMessage(WsMessageType.STATE_SNAPSHOT,
         GameSnapshot.from(session, session.status()).toPayload());
+  }
+
+  private void recordHistory(GameSession session, List<WsMessage> messages) {
+    for (WsMessage message : messages) {
+      session.recordHistory(message);
+    }
   }
 
   private String determineWinner(GameState state, int resigningIndex) {

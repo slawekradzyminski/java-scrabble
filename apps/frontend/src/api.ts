@@ -77,6 +77,7 @@ export class GameSocket {
   private heartbeat: number | null = null;
   private reconnectTimeout: number | null = null;
   private syncFallbackTimeout: number | null = null;
+  private reconnectSnapshotTimeout: number | null = null;
 
   private roomId: string | null = null;
   private player: string | null = null;
@@ -106,8 +107,10 @@ export class GameSocket {
     }
 
     this.clearReconnectTimeout();
+    this.clearReconnectSnapshotTimeout();
     this.closeSocket();
 
+    this.hasSyncedOnce = false;
     this.setConnectionState(this.reconnectAttempts > 0 ? 'reconnecting' : 'connecting');
 
     const base = new URL(baseUrl());
@@ -144,6 +147,7 @@ export class GameSocket {
       this.requestSync();
       this.startHeartbeat();
       this.scheduleSyncFallback();
+      this.scheduleReconnectSnapshot();
     };
 
     this.socket.onclose = (event) => {
@@ -152,6 +156,7 @@ export class GameSocket {
       }
       this.stopHeartbeat();
       this.clearSyncFallbackTimeout();
+      this.clearReconnectSnapshotTimeout();
 
       if (this.shouldReconnect) {
         this.setConnectionState('reconnecting');
@@ -209,6 +214,41 @@ export class GameSocket {
     if (this.syncFallbackTimeout !== null) {
       window.clearTimeout(this.syncFallbackTimeout);
       this.syncFallbackTimeout = null;
+    }
+  }
+
+  private scheduleReconnectSnapshot() {
+    this.clearReconnectSnapshotTimeout();
+    if (this.connectionState !== 'reconnecting') {
+      return;
+    }
+    const roomId = this.roomId;
+    const player = this.player;
+    this.reconnectSnapshotTimeout = window.setTimeout(async () => {
+      if (this.hasSyncedOnce || !roomId || !player) {
+        return;
+      }
+      if (import.meta.env.DEV) {
+        console.info('WS reconnect snapshot: fetching REST snapshot');
+      }
+      try {
+        const snapshot = await fetchSnapshot(roomId, player);
+        if (!this.hasSyncedOnce && this.roomId === roomId) {
+          this.hasSyncedOnce = true;
+          this.snapshotListener?.(snapshot);
+        }
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.warn('Reconnect snapshot failed', error);
+        }
+      }
+    }, 800);
+  }
+
+  private clearReconnectSnapshotTimeout() {
+    if (this.reconnectSnapshotTimeout !== null) {
+      window.clearTimeout(this.reconnectSnapshotTimeout);
+      this.reconnectSnapshotTimeout = null;
     }
   }
 
@@ -313,6 +353,7 @@ export class GameSocket {
     this.shouldReconnect = false;
     this.clearReconnectTimeout();
     this.clearSyncFallbackTimeout();
+    this.clearReconnectSnapshotTimeout();
     this.stopHeartbeat();
     this.closeSocket();
     this.setConnectionState('disconnected');

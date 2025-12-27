@@ -48,6 +48,12 @@ export interface PendingMove {
   placements: Array<{ coordinate: string; assignedLetter: string }>;
 }
 
+export interface HistoryEntry {
+  type: WsMessageType;
+  payload: Record<string, unknown>;
+  time: string;
+}
+
 export interface GameSnapshot {
   roomId: string;
   status: string;
@@ -59,5 +65,6 @@ export interface GameSnapshot {
   pendingMove: boolean;
   pending: PendingMove | null;
   winner: string | null;
+  history?: HistoryEntry[];
   serverTime?: string;
 }

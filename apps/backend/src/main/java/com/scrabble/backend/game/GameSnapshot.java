@@ -26,7 +26,8 @@ public record GameSnapshot(
     boolean pendingMove,
     List<Map<String, Object>> board,
     Map<String, Object> pending,
-    String winner) {
+    String winner,
+    List<Map<String, Object>> history) {
 
   public static GameSnapshot from(GameSession session, String status) {
     return from(session, status, null);
@@ -50,11 +51,12 @@ public record GameSnapshot(
         state.pendingMove() != null,
         boardTiles,
         pending,
-        session.winner());
+        session.winner(),
+        session.history());
   }
 
   public static GameSnapshot missing(String roomId) {
-    return new GameSnapshot(roomId, "not_started", List.of(), 0, 0, null, false, List.of(), null, null);
+    return new GameSnapshot(roomId, "not_started", List.of(), 0, 0, null, false, List.of(), null, null, List.of());
   }
 
   private static Map<String, Object> playerToMap(Player player, String viewer) {
@@ -84,6 +86,7 @@ public record GameSnapshot(
     payload.put("pendingMove", pendingMove);
     payload.put("pending", pending);
     payload.put("winner", winner);
+    payload.put("history", history);
     return payload;
   }
 

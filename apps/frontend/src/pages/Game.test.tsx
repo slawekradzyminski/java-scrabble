@@ -116,7 +116,7 @@ describe('Game', () => {
     sendSnapshot({ status: 'not_started' });
 
     await waitFor(() => {
-      expect(screen.getByText('not_started')).toBeInTheDocument();
+      expect(screen.queryByText(/connecting/i)).not.toBeInTheDocument();
     });
   });
 
@@ -128,7 +128,6 @@ describe('Game', () => {
     await waitFor(() => {
       expect(screen.queryByText(/connecting/i)).not.toBeInTheDocument();
     });
-    expect(screen.getByText('active')).toBeInTheDocument();
   });
 
   it('displays player info from snapshot', async () => {

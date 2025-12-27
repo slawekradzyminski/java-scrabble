@@ -50,9 +50,13 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
   const [lastEventAt, setLastEventAt] = useState<number | null>(null);
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [headerExpanded, setHeaderExpanded] = useState(false);
+  const [bagModalOpen, setBagModalOpen] = useState(false);
 
   const socketRef = useRef<GameSocket | null>(null);
   const eventCounterRef = useRef(0);
+  const historyHydratedRef = useRef(false);
+  const lastServerStateRef = useRef<{ boardTiles: number; currentPlayerIndex: number | null; status: string } | null>(null);
+  const placementsRef = useRef<PlacementState>({});
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -68,6 +72,10 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     }
     return filled.slice(0, 7);
   }, [snapshot.players, player, placements]);
+
+  useEffect(() => {
+    placementsRef.current = placements;
+  }, [placements]);
 
   const resetLocalState = useCallback(() => {
     setPlacements({});
@@ -140,6 +148,27 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     setLastEventAt(Date.now());
   }, [summarizeEvent]);
 
+  const hydrateEventLog = useCallback((history: GameSnapshot['history']) => {
+    if (!history || history.length === 0) {
+      return;
+    }
+    eventCounterRef.current = 0;
+    const entries = [...history].reverse().map((item) => {
+      const message = { type: item.type, payload: item.payload } as WsMessage;
+      const time = item.time ? new Date(item.time).toLocaleTimeString() : new Date().toLocaleTimeString();
+      return {
+        id: (eventCounterRef.current += 1),
+        time,
+        type: message.type,
+        summary: summarizeEvent(message)
+      } as EventLogEntry;
+    });
+    setEventLog(entries);
+    const lastEntry = history[history.length - 1];
+    const lastTime = lastEntry?.time ? Date.parse(lastEntry.time) : Date.now();
+    setLastEventAt(Number.isNaN(lastTime) ? Date.now() : lastTime);
+  }, [summarizeEvent]);
+
   const getSocket = useCallback(() => {
     if (!socketRef.current) {
       socketRef.current = new GameSocket();
@@ -154,20 +183,41 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     setHasSynced(false);
     setEventLog([]);
     eventCounterRef.current = 0;
+    historyHydratedRef.current = false;
     setSnapshot({ ...emptySnapshot, roomId: targetRoomId });
     resetLocalState();
 
     socket.onConnectionState((state) => {
       setConnectionState(state);
       if (state === 'reconnecting') {
-        resetLocalState();
+        setHasSynced(false);
+        historyHydratedRef.current = false;
       }
     });
 
     socket.onSnapshot((next) => {
       setSnapshot((prev) => mergeSnapshot(prev, next));
-      resetLocalState();
+      const playerIndex = next.players.findIndex((p) => p.name === targetPlayer);
+      const previousState = lastServerStateRef.current;
+      const serverStateChanged = !previousState
+        || previousState.boardTiles !== next.boardTiles
+        || previousState.currentPlayerIndex !== next.currentPlayerIndex
+        || previousState.status !== next.status;
+      const hasPlacements = Object.keys(placementsRef.current).length > 0;
+      const notPlayersTurn = playerIndex === -1 || next.currentPlayerIndex !== playerIndex;
+      if (serverStateChanged || (hasPlacements && notPlayersTurn)) {
+        resetLocalState();
+      }
+      lastServerStateRef.current = {
+        boardTiles: next.boardTiles,
+        currentPlayerIndex: next.currentPlayerIndex,
+        status: next.status
+      };
       setHasSynced(true);
+      if (!historyHydratedRef.current) {
+        hydrateEventLog(next.history);
+        historyHydratedRef.current = true;
+      }
     });
 
     socket.onEvent((message: WsMessage) => {
@@ -179,7 +229,7 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     });
 
     socket.connect(targetRoomId, targetPlayer);
-  }, [appendEventLog, getSocket, mergeSnapshot, resetLocalState]);
+  }, [appendEventLog, getSocket, hydrateEventLog, mergeSnapshot, resetLocalState]);
 
   useEffect(() => {
     if (!roomId || !player) {
@@ -346,6 +396,10 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     if (placements[coordinate] && !activeTileSource) {
       setPlacements((prev) => {
         const next = { ...prev };
+        const rackIndex = next[coordinate]?.rackIndex;
+        if (typeof rackIndex === 'number' && rackIndex >= 0) {
+          delete next[`rack-${rackIndex}`];
+        }
         delete next[coordinate];
         return next;
       });
@@ -440,6 +494,71 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
   const isSocketReady = connectionState === 'connected' && hasSynced;
   const isConnecting = connectionState === 'connecting' || connectionState === 'reconnecting';
   const hasBoardPlacements = Object.values(placements).some((tile) => !tile.coordinate.startsWith('rack-'));
+  const bagTotals = useMemo(() => {
+    const allTiles: Array<{ letter: string | null; points: number; blank: boolean; key: string }> = [];
+    const addTiles = (letter: string | null, points: number, count: number, blank = false) => {
+      for (let i = 0; i < count; i += 1) {
+        allTiles.push({ letter, points, blank, key: blank ? 'BLANK' : letter ?? '' });
+      }
+    };
+    addTiles('A', 1, 9);
+    addTiles('Ą', 5, 1);
+    addTiles('B', 3, 2);
+    addTiles('C', 2, 3);
+    addTiles('Ć', 6, 1);
+    addTiles('D', 2, 3);
+    addTiles('E', 1, 7);
+    addTiles('Ę', 5, 1);
+    addTiles('F', 5, 1);
+    addTiles('G', 3, 2);
+    addTiles('H', 3, 2);
+    addTiles('I', 1, 8);
+    addTiles('J', 3, 2);
+    addTiles('K', 2, 3);
+    addTiles('L', 2, 3);
+    addTiles('Ł', 3, 2);
+    addTiles('M', 2, 3);
+    addTiles('N', 1, 5);
+    addTiles('Ń', 7, 1);
+    addTiles('O', 1, 6);
+    addTiles('Ó', 5, 1);
+    addTiles('P', 2, 3);
+    addTiles('R', 1, 4);
+    addTiles('S', 1, 4);
+    addTiles('Ś', 5, 1);
+    addTiles('T', 2, 3);
+    addTiles('U', 3, 2);
+    addTiles('W', 1, 4);
+    addTiles('Y', 2, 4);
+    addTiles('Z', 1, 5);
+    addTiles('Ź', 9, 1);
+    addTiles('Ż', 5, 1);
+    addTiles(null, 0, 2, true);
+    return allTiles;
+  }, []);
+
+  const usedTiles = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const add = (key: string) => {
+      counts[key] = (counts[key] ?? 0) + 1;
+    };
+    snapshot.board.forEach((tile) => {
+      add(tile.blank ? 'BLANK' : tile.assignedLetter);
+    });
+    Object.values(placements)
+      .filter((tile) => !tile.coordinate.startsWith('rack-'))
+      .forEach((tile) => {
+        add(tile.blank ? 'BLANK' : tile.assignedLetter);
+      });
+    rackTiles.forEach((tile) => {
+      if (tile.blank) {
+        add('BLANK');
+      } else if (tile.letter) {
+        add(tile.letter);
+      }
+    });
+    return counts;
+  }, [snapshot.board, placements, rackTiles]);
 
   return (
     <>
@@ -542,24 +661,21 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
                 {error && <p className="error">{error}</p>}
                 <div className="info-meta">
                   <div>
-                    <span>Room</span>
-                    <strong>{snapshot.roomId || '—'}</strong>
-                  </div>
-                  <div>
                     <span>Player</span>
                     <strong>{player || '—'}</strong>
                   </div>
                   <div>
-                    <span>Status</span>
-                    <strong>
-                      {hasSynced
-                        ? snapshot.status
-                        : connectionState}
-                    </strong>
-                  </div>
-                  <div>
                     <span>Bag</span>
-                    <strong>{snapshot.bagCount}</strong>
+                    <strong>
+                      <button
+                        type="button"
+                        className="bag-button"
+                        onClick={() => setBagModalOpen(true)}
+                        disabled={!isSocketReady}
+                      >
+                        {snapshot.bagCount}
+                      </button>
+                    </strong>
                   </div>
                   {snapshot.winner && (
                     <div>
@@ -621,6 +737,42 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
           </aside>
         </main>
       </DndContext>
+      {bagModalOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setBagModalOpen(false)}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label="Bag contents" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Bag contents</h2>
+              <button type="button" className="modal-close" onClick={() => setBagModalOpen(false)}>
+                Close
+              </button>
+            </div>
+            <div className="modal-meta">
+              <span>Bag: {snapshot.bagCount} tiles</span>
+              <span>Opponent rack: {Math.max(0, (snapshot.players.find(p => p.name !== player)?.rackSize ?? 0))}</span>
+            </div>
+            <div className="modal-grid">
+              {(() => {
+                const remaining = { ...usedTiles };
+                return bagTotals.map((tile, index) => {
+                  const key = tile.blank ? 'BLANK' : tile.letter ?? '';
+                  const isUsed = (remaining[key] ?? 0) > 0;
+                  if (isUsed) {
+                    remaining[key] -= 1;
+                  }
+                  return (
+                    <div key={`${key}-${index}`} className={`modal-tile ${isUsed ? 'modal-tile--used' : ''}`}>
+                      <Tile
+                        tile={{ letter: tile.letter, points: tile.points, blank: tile.blank }}
+                        label={tile.blank ? '?' : undefined}
+                      />
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
