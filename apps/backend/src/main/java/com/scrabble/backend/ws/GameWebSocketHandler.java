@@ -5,16 +5,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scrabble.backend.game.GameService;
 import com.scrabble.backend.game.GameSnapshot;
-import com.scrabble.engine.Coordinate;
-import com.scrabble.engine.LetterTile;
-import com.scrabble.engine.PlacedTile;
-import com.scrabble.engine.Tile;
 import java.net.URI;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
@@ -30,11 +24,17 @@ public class GameWebSocketHandler implements WebSocketHandler {
   private final ObjectMapper objectMapper;
   private final GameService gameService;
   private final GameHub gameHub;
+  private final GameCommandParser parser;
 
-  public GameWebSocketHandler(ObjectMapper objectMapper, GameService gameService, GameHub gameHub) {
+  public GameWebSocketHandler(
+      ObjectMapper objectMapper,
+      GameService gameService,
+      GameHub gameHub,
+      GameCommandParser parser) {
     this.objectMapper = objectMapper;
     this.gameService = gameService;
     this.gameHub = gameHub;
+    this.parser = parser;
   }
 
   @Override
@@ -98,8 +98,8 @@ public class GameWebSocketHandler implements WebSocketHandler {
 
     try {
       GameCommandResult result = switch (type) {
-        case "PLAY_TILES" -> gameService.playTiles(roomId, player, parsePlacements(payload));
-        case "EXCHANGE" -> gameService.exchange(roomId, player, parseTiles(payload));
+        case "PLAY_TILES" -> gameService.playTiles(roomId, player, parser.parsePlacements(payload));
+        case "EXCHANGE" -> gameService.exchange(roomId, player, parser.parseTiles(payload));
         case "PASS" -> gameService.pass(roomId, player);
         case "CHALLENGE" -> gameService.challenge(roomId, player);
         case "RESIGN" -> gameService.resign(roomId, player);
@@ -150,59 +150,5 @@ public class GameWebSocketHandler implements WebSocketHandler {
     for (WsMessage message : messages) {
       sink.tryEmitNext(message);
     }
-  }
-
-  private Map<Coordinate, PlacedTile> parsePlacements(JsonNode payload) {
-    JsonNode placementsNode = payload.path("placements");
-    if (!placementsNode.isArray()) {
-      throw new GameCommandException("MOVE_REJECTED", Map.of("reason", "missing_placements"));
-    }
-    Map<Coordinate, PlacedTile> placements = new HashMap<>();
-    for (JsonNode node : placementsNode) {
-      String coordinateText = node.path("coordinate").asText(null);
-      String letterText = node.path("letter").asText(null);
-      boolean blank = node.path("blank").asBoolean(false);
-      if (coordinateText == null || letterText == null || letterText.isBlank()) {
-        throw new GameCommandException("MOVE_REJECTED", Map.of("reason", "invalid_placement"));
-      }
-      char letter = normalizeLetter(letterText);
-      Tile tile = blank ? Tile.blankTile() : LetterTile.fromLetter(letter).toTile();
-      PlacedTile placed = new PlacedTile(tile, letter);
-      Coordinate coordinate = Coordinate.parse(coordinateText);
-      if (placements.putIfAbsent(coordinate, placed) != null) {
-        throw new GameCommandException("MOVE_REJECTED", Map.of("reason", "duplicate_coordinate"));
-      }
-    }
-    return placements;
-  }
-
-  private List<Tile> parseTiles(JsonNode payload) {
-    JsonNode tilesNode = payload.path("tiles");
-    if (!tilesNode.isArray()) {
-      throw new GameCommandException("MOVE_REJECTED", Map.of("reason", "missing_tiles"));
-    }
-    List<Tile> tiles = new ArrayList<>();
-    for (JsonNode node : tilesNode) {
-      String letterText = node.path("letter").asText(null);
-      boolean blank = node.path("blank").asBoolean(false);
-      if (blank) {
-        tiles.add(Tile.blankTile());
-        continue;
-      }
-      if (letterText == null || letterText.isBlank()) {
-        throw new GameCommandException("MOVE_REJECTED", Map.of("reason", "invalid_tile"));
-      }
-      char letter = normalizeLetter(letterText);
-      tiles.add(LetterTile.fromLetter(letter).toTile());
-    }
-    return tiles;
-  }
-
-  private char normalizeLetter(String text) {
-    String trimmed = text.trim();
-    if (trimmed.length() != 1) {
-      throw new GameCommandException("MOVE_REJECTED", Map.of("reason", "invalid_letter"));
-    }
-    return trimmed.toUpperCase(Locale.forLanguageTag("pl-PL")).charAt(0);
   }
 }

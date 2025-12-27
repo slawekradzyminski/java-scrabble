@@ -1,8 +1,19 @@
 package com.scrabble.backend.game;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.scrabble.backend.ws.GameCommandException;
+import com.scrabble.backend.ws.GameCommandParser;
+import com.scrabble.backend.ws.GameCommandResult;
+import com.scrabble.backend.ws.WsMessage;
+import java.util.List;
+import java.util.Map;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -10,9 +21,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/rooms/{roomId}/game")
 public class GameController {
   private final GameService gameService;
+  private final ObjectMapper objectMapper;
+  private final GameCommandParser parser;
 
-  public GameController(GameService gameService) {
+  public GameController(GameService gameService, ObjectMapper objectMapper, GameCommandParser parser) {
     this.gameService = gameService;
+    this.objectMapper = objectMapper;
+    this.parser = parser;
   }
 
   @PostMapping("/start")
@@ -24,4 +39,28 @@ public class GameController {
   public GameSnapshot state(@PathVariable String roomId) {
     return gameService.snapshot(roomId);
   }
+
+  @PostMapping("/command")
+  public ResponseEntity<?> command(
+      @PathVariable String roomId,
+      @RequestBody GameCommandRequest request) {
+    JsonNode payload = objectMapper.valueToTree(request.payload());
+    try {
+      GameCommandResult result = switch (request.type()) {
+        case "PLAY_TILES" -> gameService.playTiles(roomId, request.player(), parser.parsePlacements(payload));
+        case "EXCHANGE" -> gameService.exchange(roomId, request.player(), parser.parseTiles(payload));
+        case "PASS" -> gameService.pass(roomId, request.player());
+        case "CHALLENGE" -> gameService.challenge(roomId, request.player());
+        case "RESIGN" -> gameService.resign(roomId, request.player());
+        default -> throw new GameCommandException("ERROR", Map.of("reason", "unknown_command"));
+      };
+      return ResponseEntity.ok(new GameCommandResponse(result.broadcast(), result.direct()));
+    } catch (GameCommandException e) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new WsMessage(e.type(), e.payload()));
+    }
+  }
+
+  public record GameCommandRequest(String type, String player, Map<String, Object> payload) { }
+
+  public record GameCommandResponse(List<WsMessage> broadcast, List<WsMessage> direct) { }
 }
