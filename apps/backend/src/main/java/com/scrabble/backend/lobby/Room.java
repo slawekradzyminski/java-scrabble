@@ -34,6 +34,9 @@ public final class Room {
   }
 
   public void addPlayer(String playerName) {
+    if (players.contains(playerName)) {
+      return;
+    }
     players.add(playerName);
   }
 }

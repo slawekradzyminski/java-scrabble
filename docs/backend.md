@@ -30,3 +30,4 @@
 - In-memory only, no persistence.
 - Basic resign ends the game immediately.
 - Exchange requires enough tiles in bag.
+- CORS allows local frontend dev origins (localhost:5173, 127.0.0.1:5173).

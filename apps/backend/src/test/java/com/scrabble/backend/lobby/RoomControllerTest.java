@@ -62,6 +62,14 @@ class RoomControllerTest {
         .expectStatus().isOk()
         .expectBody()
         .jsonPath("$.players.length()").isEqualTo(2);
+
+    client.post()
+        .uri("/api/rooms/{roomId}/join", roomId.get())
+        .bodyValue(Map.of("player", "Carol"))
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody()
+        .jsonPath("$.players.length()").isEqualTo(2);
   }
 
   private WebTestClient buildClient() {

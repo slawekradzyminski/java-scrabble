@@ -34,3 +34,5 @@ jobs:
         run: cd apps/frontend && npm run test
       - name: Frontend Coverage
         run: cd apps/frontend && npm run test:coverage
+      - name: Frontend Build
+        run: cd apps/frontend && npm run build

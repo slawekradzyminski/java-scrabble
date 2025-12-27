@@ -13,6 +13,12 @@ export interface WsMessage {
   payload: Record<string, unknown>;
 }
 
+export interface RoomSummary {
+  id: string;
+  name: string;
+  players: string[];
+}
+
 export interface RackTile {
   letter: string | null;
   points: number;

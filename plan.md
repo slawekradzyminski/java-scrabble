@@ -205,6 +205,11 @@ Acceptance checks:
 - 2025-12-27: Phase 4 started (Vite + React + TS scaffold, drag-and-drop board + rack, docs updated with frontend/back-end summary).
 - 2025-12-27: Phase 4: frontend scripts added, lint + Vitest coverage configured, RTL component tests added, docs/quality updated.
 - 2025-12-27: Phase 4: frontend test coverage enforced, App/api tests added, CI updated to run frontend lint/tests/coverage.
+- 2025-12-27: Phase 4: frontend build verified and CI updated to run frontend build.
+- 2025-12-27: Phase 4: staged tiles list added with removal control; Playwright manual check verified live UI connection.
+- 2025-12-27: Phase 4: lobby UI added (room list/create/join/start) with REST wiring and tests; docs refreshed.
+- 2025-12-27: Phase 4: lobby split into separate view, board layout squared, and drag/drop context fixed.
+- 2025-12-27: Phase 4: lobby UX polished and game layout tightened to fit in one screen.
 
 ## Practical build/CI workflow in one repo
 

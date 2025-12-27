@@ -26,8 +26,12 @@ npm run test:coverage
 ```
 
 ## UX notes
-- Connect with room id + player name.
-- Drag tiles from rack to board cells.
+- Lobby is a dedicated view for create/join/room selection (no board shown).
+- After connecting, the game view fits on a single screen with board + rack stacked and a compact sidebar.
+- Start games from the Room panel after you are connected.
+- Rack lives in the sidebar; drag tiles from rack to board cells.
+- Filter rooms by name or id in the lobby list, then join directly.
+- Game URLs include the room id and a name slug (ex: `/room/12-scrabble-night`).
 - Use action buttons to play, pass, challenge, or resign.
 
 ## Drag & drop model
@@ -37,7 +41,6 @@ npm run test:coverage
 - Blank tiles prompt for a letter on drop.
 
 ## Next improvements
-- Blank tile letter picker.
 - Click-to-place fallback for touch.
 - Move preview score and word list.
 - Better reconnection UI and error toasts.

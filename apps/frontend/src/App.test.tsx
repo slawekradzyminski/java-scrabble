@@ -1,18 +1,35 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import App from './App';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+let App: typeof import('./App').default;
 
 const connectMock = vi.fn();
 const sendMock = vi.fn();
+const listRoomsMock = vi.fn();
+const joinRoomMock = vi.fn();
+const createRoomMock = vi.fn();
+const startGameMock = vi.fn();
 let snapshotHandler: ((snapshot: unknown) => void) | null = null;
+
+const waitForLobbyReady = async () => {
+  await waitFor(() => expect(listRoomsMock).toHaveBeenCalled());
+  await waitFor(() => {
+    expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled();
+  });
+};
 
 vi.mock('./api', () => {
   return {
+    __esModule: true,
+    listRooms: () => listRoomsMock(),
+    joinRoom: (...args: unknown[]) => joinRoomMock(...args),
+    createRoom: (...args: unknown[]) => createRoomMock(...args),
+    startGame: (...args: unknown[]) => startGameMock(...args),
     GameSocket: class {
       onSnapshot(handler: (snapshot: unknown) => void) {
         snapshotHandler = handler;
       }
       onEvent() {}
+      disconnect() {}
       connect(roomId: string, player: string) {
         connectMock(roomId, player);
       }
@@ -24,54 +41,76 @@ vi.mock('./api', () => {
 });
 
 describe('App', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await vi.resetModules();
+    window.localStorage.clear();
     connectMock.mockClear();
     sendMock.mockClear();
+    listRoomsMock.mockReset().mockImplementation(() => new Promise((resolve) => {
+      setTimeout(() => resolve([{ id: 'room-1', name: 'Room 1', players: [] }]), 0);
+    }));
+    joinRoomMock.mockReset().mockResolvedValue({ id: 'room-1', name: 'Room', players: ['Alice'] });
+    createRoomMock.mockReset().mockResolvedValue({ id: 'room-9', name: 'Room', players: ['Alice'] });
+    startGameMock.mockReset().mockResolvedValue({});
+    App = (await import('./App')).default;
   });
 
-  it('renders connect fields and calls connect', () => {
+  it('renders connect fields and calls connect', async () => {
     // given
     render(<App />);
-    const roomInput = screen.getByPlaceholderText('Room id');
+    await waitForLobbyReady();
     const playerInput = screen.getByPlaceholderText('Player name');
+    const joinButton = screen.getByRole('button', { name: 'Join' });
 
     // when
-    fireEvent.change(roomInput, { target: { value: 'room-1' } });
     fireEvent.change(playerInput, { target: { value: 'Alice' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    await waitFor(() => expect(playerInput).toHaveValue('Alice'));
+    await waitFor(() => expect(joinButton).toBeEnabled());
+    fireEvent.click(joinButton);
 
     // then
-    expect(connectMock).toHaveBeenCalledWith('room-1', 'Alice');
+    await waitFor(() => {
+      expect(joinRoomMock).toHaveBeenCalledWith('room-1', 'Alice');
+      expect(connectMock).toHaveBeenCalledWith('room-1', 'Alice');
+    });
   });
 
-  it('does not connect without room or player', () => {
+  it('does not connect without room or player', async () => {
     // given
     render(<App />);
+    await waitForLobbyReady();
 
     // when
-    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    const joinButton = screen.getByRole('button', { name: 'Join' });
 
     // then
+    expect(joinButton).toBeDisabled();
     expect(connectMock).not.toHaveBeenCalled();
+    expect(joinRoomMock).not.toHaveBeenCalled();
   });
 
-  it('ignores play tiles when not connected', () => {
+  it('ignores play tiles when not connected', async () => {
     // given
     render(<App />);
+    await waitForLobbyReady();
 
     // when
-    fireEvent.click(screen.getByRole('button', { name: 'Play tiles' }));
+    const playButton = screen.queryByRole('button', { name: 'Play tiles' });
 
     // then
+    expect(playButton).not.toBeInTheDocument();
     expect(sendMock).not.toHaveBeenCalled();
   });
 
-  it('sends commands from action buttons', () => {
+  it('sends commands from action buttons', async () => {
     // given
     render(<App />);
-    fireEvent.change(screen.getByPlaceholderText('Room id'), { target: { value: 'room-1' } });
+    await waitForLobbyReady();
     fireEvent.change(screen.getByPlaceholderText('Player name'), { target: { value: 'Alice' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    await waitFor(() => expect(screen.getByPlaceholderText('Player name')).toHaveValue('Alice'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Join' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    await waitFor(() => expect(connectMock).toHaveBeenCalled());
     act(() => {
       snapshotHandler?.({
         roomId: 'room-1',
@@ -118,12 +157,15 @@ describe('App', () => {
     });
   });
 
-  it('renders pending move and winner details', () => {
+  it('renders pending move and winner details', async () => {
     // given
     render(<App />);
-    fireEvent.change(screen.getByPlaceholderText('Room id'), { target: { value: 'room-2' } });
+    await waitForLobbyReady();
     fireEvent.change(screen.getByPlaceholderText('Player name'), { target: { value: 'Bob' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    await waitFor(() => expect(screen.getByPlaceholderText('Player name')).toHaveValue('Bob'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Join' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    await waitFor(() => expect(connectMock).toHaveBeenCalled());
 
     // when
     act(() => {
@@ -142,19 +184,22 @@ describe('App', () => {
     });
 
     // then
-    expect(screen.getByText('Winner:')).toBeInTheDocument();
-    expect(screen.getByText('Bob')).toBeInTheDocument();
+    expect(screen.getByText('Winner')).toBeInTheDocument();
+    expect(screen.getAllByText('Bob').length).toBeGreaterThan(0);
     expect(screen.getByText('Score: 12')).toBeInTheDocument();
     expect(screen.getByText('Words: TEST')).toBeInTheDocument();
   });
 
-  it('handles blank tile prompt rejection', () => {
+  it('handles blank tile prompt rejection', async () => {
     // given
     const promptSpy = vi.spyOn(window, 'prompt').mockReturnValueOnce('').mockReturnValueOnce('Z');
     render(<App />);
-    fireEvent.change(screen.getByPlaceholderText('Room id'), { target: { value: 'room-3' } });
+    await waitForLobbyReady();
     fireEvent.change(screen.getByPlaceholderText('Player name'), { target: { value: 'Cara' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    await waitFor(() => expect(screen.getByPlaceholderText('Player name')).toHaveValue('Cara'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Join' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    await waitFor(() => expect(connectMock).toHaveBeenCalled());
     act(() => {
       snapshotHandler?.({
         roomId: 'room-3',
