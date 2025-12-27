@@ -16,7 +16,7 @@ class FstDictionaryTest {
     Path tempDir = Files.createTempDirectory("fst-test");
     Path fstPath = tempDir.resolve("osps.fst");
 
-    Path input = TestWordlists.findRepoFile("osps_shortened.txt");
+    Path input = TestWordlists.loadResourceToTempFile("osps_shortened.txt");
     new DictionaryCompiler().compile(input, fstPath);
 
     FstDictionary dictionary = FstDictionary.load(fstPath, DictionaryPaths.metaPathFor(fstPath));
@@ -31,7 +31,7 @@ class FstDictionaryTest {
     Path tempDir = Files.createTempDirectory("fst-test-miss");
     Path fstPath = tempDir.resolve("osps.fst");
 
-    Path input = TestWordlists.findRepoFile("osps_shortened.txt");
+    Path input = TestWordlists.loadResourceToTempFile("osps_shortened.txt");
     new DictionaryCompiler().compile(input, fstPath);
 
     FstDictionary dictionary = FstDictionary.load(fstPath, DictionaryPaths.metaPathFor(fstPath));
@@ -44,7 +44,7 @@ class FstDictionaryTest {
     Path tempDir = Files.createTempDirectory("fst-test-dia");
     Path fstPath = tempDir.resolve("osps.fst");
 
-    Path input = TestWordlists.findRepoFile("osps_shortened.txt");
+    Path input = TestWordlists.loadResourceToTempFile("osps_shortened.txt");
     new DictionaryCompiler().compile(input, fstPath);
 
     FstDictionary dictionary = FstDictionary.load(fstPath, DictionaryPaths.metaPathFor(fstPath));
