@@ -1,0 +1,186 @@
+## Monorepo layout (one repository)
+
+### Top-level structure
+- `apps/backend/` – Spring Boot WebFlux app (REST + WebSocket)
+- `apps/frontend/` – React + TS
+- `packages/game-engine/` – pure Java module (rules, move validation, scoring) no Spring
+- `packages/dictionary-tools/` – CLI tool to compile `osps.txt` → `osps.fst`
+- `packages/dictionary-runtime/` – runtime loader + lookup API used by backend
+- `data/` – not committed (local dev): raw `osps.txt` (huge), optional local outputs
+- `artifacts/` – optionally committed or released: `osps.fst` + metadata
+
+### Why split dictionary-tools vs dictionary-runtime?
+- Tools can depend on heavyweight build-time libs; runtime stays lean.
+- You can enforce "same-format contract" via versioned metadata.
+
+## Key early decisions (so you don't repaint later)
+
+### Dictionary source vs artefact in Git
+Because OSPS is huge (and may be licence-sensitive), you usually do:
+- Do not commit `osps.txt` (put it in `data/` and `.gitignore`).
+- Do commit either:
+  - `artifacts/osps.fst` (if allowed), or
+  - nothing, and instead build `osps.fst` in CI from a secure input (private CI secret/artifact store).
+
+Even in a single repo, that's still "one repository"; it just avoids checking in a 2.4M-line file.
+
+### Normalisation policy (must match build + runtime)
+Your sample includes Polish diacritics and mixed casing is possible.
+
+Pick one canonical representation, e.g.:
+- Unicode NFC
+- Uppercase (Polish locale-safe)
+- One word per line, trimmed
+
+Store this policy in `osps.fst.meta.json` and validate on startup.
+
+## Phased implementation plan
+
+### Phase 0 — Repository bootstrap (1–2 sessions)
+Goal: buildable skeleton + shared conventions.
+
+Deliverables:
+- Gradle multi-module build (or Maven; Gradle tends to be nicer for multi-modules).
+- Code style + static analysis (Spotless, Checkstyle, ErrorProne optional).
+- Test stack:
+  - JUnit 5 for engine/runtime
+  - Spring Boot Test + WebFlux test for backend
+  - Frontend: Vitest + React Testing Library
+- Basic CI workflow:
+  - build + unit tests
+  - backend integration tests
+  - frontend lint/test/build
+
+Acceptance checks:
+- `./gradlew test` green
+- `apps/backend` starts and serves a health endpoint.
+
+### Phase 1 — Dictionary pipeline (`osps.txt` → `osps.fst`) (core)
+Goal: fast membership checks with a stable binary format.
+
+Deliverables:
+- `dictionary-tools` CLI
+  - `compile --input data/osps.txt --output artifacts/osps.fst`
+  - produces:
+    - `artifacts/osps.fst`
+    - `artifacts/osps.fst.meta.json` (format version, normalisation, wordcount, sha256 of input)
+- `dictionary-runtime`
+  - Dictionary interface: `boolean contains(String word)`
+  - `FstDictionary` implementation: loads `osps.fst` once, thread-safe lookups
+
+Tests:
+- Use `osps_shortened.txt` in repo as test input to generate a tiny FST and verify lookups (including diacritics).
+
+Acceptance checks:
+- Building an FST from `osps_shortened.txt` works in CI.
+- Runtime lookup is deterministic and fast for repeated calls.
+- Startup fails fast if meta/version/normalisation mismatches.
+
+Notes:
+Your rules mention OSPS as authoritative and dictionary usage typically happens at challenge/check time.
+That means you can support two modes later:
+- strict validation at play time, or
+- pending move + challenge window (more authentic).
+
+### Phase 2 — Pure game engine (no networking yet)
+Goal: implement the rules correctly, with heavy unit coverage.
+
+Deliverables in `packages/game-engine`:
+- Domain model
+  - Board 15×15 with premium squares using your coordinate system (A–O, 1–15) and exact premium coordinates.
+  - Tiles for Polish distribution + points (incl. blanks=0).
+  - Bag, Rack, Player, GameState, PendingMove
+- Move validation
+  - First move covers H8 and uses ≥2 tiles.
+  - Subsequent moves must connect (adjacent/cross) and be collinear/contiguous.
+  - Premium squares apply only on newly placed tiles.
+  - Build main word + cross-words; require newly formed words length ≥2.
+- Scoring
+  - Apply DL/TL per word for new tiles; DW/TW multiply cumulatively; blank stays 0 even on DL/TL.
+  - +50 for using all 7 rack tiles.
+- Challenge + pending move
+  - "Move is pending until accepted/recorded; invalid challenge undoes move and player loses turn."
+- Endgame scoring
+  - Rack penalties; "went out" bonus.
+
+Testing focus (this is where quality is won):
+- Golden tests for:
+  - multipliers with cross-words,
+  - blank interactions (0 points but DW/TW applies to whole word),
+  - first move constraints,
+  - challenge undo correctness.
+- Property-style tests:
+  - undo returns state exactly,
+  - score never changes without a legal committed move.
+
+Acceptance checks:
+- A suite of ~150+ unit tests around scoring/validation.
+- Engine can run a full simulated game deterministically.
+
+### Phase 3 — Backend (Spring Boot WebFlux) + realtime protocol
+Goal: authoritative server, real-time turns, reconnection.
+
+Deliverables in `apps/backend`:
+- WebFlux REST (non-realtime)
+  - auth (can start simple: guest accounts, then JWT)
+  - lobby: create/join room, list rooms
+- WebSocket (realtime)
+  - single WebSocket endpoint per server (or per game), with:
+    - Commands: `PLAY_TILES`, `EXCHANGE`, `PASS`, `CHALLENGE`, `RESIGN`, `SYNC`
+    - Events: `STATE_SNAPSHOT`, `MOVE_PROPOSED`, `MOVE_ACCEPTED`, `MOVE_REJECTED`, `TURN_ADVANCED`, `GAME_ENDED`
+- State management
+  - In-memory game registry for MVP
+  - "snapshot on reconnect" support
+- Dictionary integration
+  - backend uses `dictionary-runtime` (`FstDictionary`) to validate during challenge/commit
+
+Acceptance checks:
+- Two browser clients can play a full game in one room.
+- Refresh/reconnect restores game state.
+- Server rejects illegal moves (never trust client).
+
+### Phase 4 — Frontend (React + TS) playable MVP
+Goal: solid UX for board play and challenges.
+
+Deliverables in `apps/frontend`:
+- Board UI (15×15 grid, premium colours/labels)
+- Rack UI (drag/drop + click-to-place)
+- Move preview (tiles placed, words formed, provisional score)
+- Pending move / challenge banner (time window or "until next action", per your rules model)
+- Lobby screens
+- WebSocket client with reconnect + resync
+
+Acceptance checks:
+- Full playable loop (create room → join → play → challenge → game end).
+- No desync: server snapshot always wins.
+
+### Phase 5 — Persistence, scaling, and "real product" features
+Goal: survive real users.
+
+Deliverables:
+- Postgres persistence:
+  - users, finished games, moves/events (optional), ratings
+- Redis (optional) for:
+  - distributed game registry (if you ever run >1 backend instance)
+  - pub/sub for game rooms
+- Observability:
+  - structured logs, metrics, tracing
+- Anti-cheat basics:
+  - server-side rack enforcement
+  - rate limiting on WS commands
+- Configurable rules toggles:
+  - exchange allowed only if ≥7 tiles remain (toggle mentioned as common variant).
+
+Acceptance checks:
+- You can restart the backend and keep finished games.
+- You can scale to multiple instances (if needed) without breaking rooms.
+
+## Practical build/CI workflow in one repo
+
+### Local dev
+- `./gradlew :packages:dictionary-tools:compileOsps -PospsInput=...`
+- `./gradlew :apps:backend:bootRun`
+- `pnpm --filter frontend dev`
+
+### CI (typical)
+- Build dictionary artefact from `osps_shortened.txt` (fast, committed) for tests

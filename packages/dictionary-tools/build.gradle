@@ -1,0 +1,27 @@
+plugins {
+  id 'application'
+}
+
+dependencies {
+  implementation project(':packages:dictionary-runtime')
+
+  testImplementation(platform(libs.junit.bom))
+  testImplementation(libs.junit.jupiter)
+}
+
+application {
+  mainClass = 'com.scrabble.dictionary.tools.DictionaryCli'
+}
+
+tasks.register('compileOsps', JavaExec) {
+  group = 'dictionary'
+  description = 'Compile OSPS word list into FST + metadata.'
+
+  classpath = sourceSets.main.runtimeClasspath
+  mainClass = application.mainClass
+
+  def inputPath = project.findProperty('ospsInput') ?: 'osps_shortened.txt'
+  def outputPath = project.findProperty('ospsOutput') ?: 'artifacts/osps.fst'
+
+  args 'compile', '--input', inputPath, '--output', outputPath
+}

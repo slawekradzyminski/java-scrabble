@@ -1,0 +1,27 @@
+allprojects {
+  group = 'com.scrabble'
+  version = '0.1.0-SNAPSHOT'
+}
+
+subprojects {
+  repositories {
+    mavenCentral()
+  }
+}
+
+subprojects {
+  plugins.withType(JavaBasePlugin).configureEach {
+    java {
+      sourceCompatibility = JavaVersion.VERSION_25
+      targetCompatibility = JavaVersion.VERSION_25
+    }
+  }
+
+  tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+  }
+
+  tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+  }
+}

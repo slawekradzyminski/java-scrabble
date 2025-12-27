@@ -1,0 +1,11 @@
+.gradle/
+build/
+out/
+*.iml
+.idea/
+.DS_Store
+osps.txt
+osps_shortened.txt
+
+data/
+artifacts/

@@ -1,0 +1,19 @@
+[versions]
+jackson = "2.20.1"
+jsr305 = "3.0.2"
+junit = "5.14.1"
+lucene = "10.3.2"
+spring-boot = "4.0.1"
+
+[libraries]
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+lucene-core = { module = "org.apache.lucene:lucene-core", version.ref = "lucene" }
+jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version = "1.1.7" }

@@ -1,0 +1,17 @@
+plugins {
+  alias(libs.plugins.spring.boot)
+  alias(libs.plugins.spring.dependency.management)
+  id 'java'
+}
+
+dependencies {
+  implementation project(':packages:dictionary-runtime')
+  implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+  testImplementation 'org.springframework.boot:spring-boot-starter-test'
+  testImplementation 'io.projectreactor:reactor-test'
+}
+
+tasks.named('test') {
+  useJUnitPlatform()
+}

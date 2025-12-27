@@ -1,0 +1,14 @@
+rootProject.name = 'java-scrabble'
+
+dependencyResolutionManagement {
+  repositories {
+    mavenCentral()
+  }
+}
+
+include(
+  'apps:backend',
+  'packages:game-engine',
+  'packages:dictionary-tools',
+  'packages:dictionary-runtime'
+)
