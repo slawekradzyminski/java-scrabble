@@ -1,9 +1,11 @@
 package com.scrabble.backend.game;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.scrabble.backend.lobby.Room;
 import com.scrabble.backend.lobby.RoomService;
+import com.scrabble.backend.ws.GameCommandException;
 import com.scrabble.dictionary.Dictionary;
 import com.scrabble.engine.Coordinate;
 import com.scrabble.engine.PlacedTile;
@@ -166,6 +168,61 @@ class GameServiceTest {
     GameSnapshot snapshot = gameService.snapshot(room.id());
     assertThat(snapshot.currentPlayerIndex()).isEqualTo(1);
     assertThat(alice.rack().size()).isEqualTo(7);
+  }
+
+  @Test
+  void exchangeRejectsWhenBagHasFewerThanSevenTiles() {
+    // given
+    RoomService roomService = new RoomService();
+    Dictionary dictionary = word -> true;
+    GameService gameService = new GameService(roomService, dictionary, new Random(5));
+
+    Room room = roomService.create("Room", "Alice");
+    GameSession session = gameService.start(room.id());
+    Player alice = session.state().players().get(0);
+
+    session.state().bag().draw(session.state().bag().size() - 6);
+    List<Tile> exchangeTiles = List.of(alice.rack().tiles().get(0));
+
+    // when / then
+    assertThatThrownBy(() -> gameService.exchange(room.id(), "Alice", exchangeTiles))
+        .isInstanceOf(GameCommandException.class)
+        .satisfies(error -> {
+          GameCommandException exception = (GameCommandException) error;
+          assertThat(exception.payload().get("reason")).isEqualTo("bag_too_small");
+        });
+  }
+
+  @Test
+  void exchangeRejectsAfterThreeExchangesBySamePlayer() {
+    // given
+    RoomService roomService = new RoomService();
+    Dictionary dictionary = word -> true;
+    GameService gameService = new GameService(roomService, dictionary, new Random(13));
+
+    Room room = roomService.create("Room", "Alice");
+    roomService.join(room.id(), "Bob");
+    GameSession session = gameService.start(room.id());
+    Player alice = session.state().players().get(0);
+
+    for (int i = 0; i < 3; i += 1) {
+      // when
+      List<Tile> exchangeTiles = List.of(alice.rack().tiles().get(0));
+      gameService.exchange(room.id(), "Alice", exchangeTiles);
+      session.resetPasses();
+      gameService.pass(room.id(), "Bob");
+      session.resetPasses();
+    }
+
+    List<Tile> exchangeTiles = List.of(alice.rack().tiles().get(0));
+
+    // then
+    assertThatThrownBy(() -> gameService.exchange(room.id(), "Alice", exchangeTiles))
+        .isInstanceOf(GameCommandException.class)
+        .satisfies(error -> {
+          GameCommandException exception = (GameCommandException) error;
+          assertThat(exception.payload().get("reason")).isEqualTo("exchange_limit_reached");
+        });
   }
 
   @Test

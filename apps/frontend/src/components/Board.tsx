@@ -130,7 +130,6 @@ function DroppableCell({
       className={`board-cell ${premium ? `board-cell--${premium}` : ''} ${isOver ? 'board-cell--highlight' : ''}`}
       onClick={() => onClick?.(id)}
     >
-      <span className="board-cell__label">{id}</span>
       {premium && <span className="board-cell__premium">{premium.toUpperCase()}</span>}
       {tile && !isPending && (
         <Tile

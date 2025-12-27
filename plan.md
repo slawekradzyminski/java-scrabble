@@ -118,6 +118,9 @@ Acceptance checks:
 - Engine can run a full simulated game deterministically.
 
 ### Phase 3 — Backend (Spring Boot WebFlux) + realtime protocol
+ 
+## Progress notes
+- 2025-12-27: Enforced exchange limits (max 3 per player) and 7-tile bag minimum for exchanges; added backend tests.
 Goal: authoritative server, real-time turns, reconnection.
 
 Deliverables in `apps/backend`:

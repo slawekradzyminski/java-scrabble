@@ -477,9 +477,7 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
               )}
             </div>
             <div className="panel rack-panel">
-              <h2>Your rack</h2>
               <Rack tiles={rackTiles} onSelect={handleTileSelect} />
-              <div className="rack-hint">Drag tiles onto the board. Snapshots are scoped to the connected player.</div>
               {import.meta.env.MODE === 'test' && (
                 <div className="test-controls">
                   <button
