@@ -13,7 +13,6 @@ import com.scrabble.engine.Coordinate;
 import com.scrabble.engine.GameState;
 import com.scrabble.engine.MovePlacement;
 import com.scrabble.engine.MoveValidator;
-import com.scrabble.engine.PendingMove;
 import com.scrabble.engine.PlacedTile;
 import com.scrabble.engine.Player;
 import com.scrabble.engine.Rack;
@@ -110,14 +109,40 @@ public class GameService {
         MoveValidator.validatePlacement(state.board(), move);
         ScoringResult scoring = Scorer.score(state.board(), move, Board.standard());
         state.applyPendingMove(move, scoring);
-        WsMessage proposed = new WsMessage(WsMessageType.MOVE_PROPOSED, Map.of(
-            "player", player.name(),
-            "score", scoring.totalScore(),
-            "words", wordsToPayload(scoring.words()),
-            "placements", placementsToPayload(placements)));
+        List<String> invalidWords = scoring.words().stream()
+            .map(Word::text)
+            .filter(word -> !dictionary.contains(word))
+            .collect(Collectors.toList());
+        boolean valid = invalidWords.isEmpty();
+        if (!valid) {
+          restoreTiles(player.rack(), placements.values().stream()
+              .map(PlacedTile::tile)
+              .collect(Collectors.toList()));
+        }
+        state.resolveChallenge(valid);
+        List<WsMessage> broadcast = new ArrayList<>();
+        if (valid) {
+          refillRack(player.rack(), state.bag());
+          session.resetPasses();
+          broadcast.add(new WsMessage(WsMessageType.MOVE_ACCEPTED, Map.of(
+              "player", player.name(),
+              "score", scoring.totalScore(),
+              "words", wordsToPayload(scoring.words()))));
+        } else {
+          broadcast.add(new WsMessage(WsMessageType.MOVE_REJECTED, Map.of(
+              "player", player.name(),
+              "reason", "invalid_words",
+              "invalidWords", invalidWords)));
+        }
+        WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
         WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
             GameSnapshot.from(session, session.status()).toPayload());
-        GameCommandResult base = GameCommandResult.broadcastOnly(proposed, snapshot);
+        broadcast.add(turn);
+        broadcast.add(snapshot);
+        if (valid) {
+          checkOutEndgame(session, player, broadcast);
+        }
+        GameCommandResult base = new GameCommandResult(broadcast, List.of());
         return withAiTurns(session, base);
       } catch (RuntimeException e) {
         restoreTiles(player.rack(), removed);
@@ -126,59 +151,6 @@ public class GameService {
         }
         throw rejected("invalid_move");
       }
-    }
-  }
-
-  public GameCommandResult challenge(String roomId, String playerName) {
-    GameSession session = requireSession(roomId);
-    synchronized (session) {
-      ensureActive(session);
-      GameState state = session.state();
-      requirePlayerIndex(state, playerName);
-      PendingMove pending = state.pendingMove();
-      if (pending == null) {
-        throw rejected("no_pending_move");
-      }
-      int moverIndex = state.currentPlayerIndex();
-      Player mover = state.players().get(moverIndex);
-
-      List<String> invalidWords = pending.scoringResult().words().stream()
-          .map(Word::text)
-          .filter(word -> !dictionary.contains(word))
-          .collect(Collectors.toList());
-
-      boolean valid = invalidWords.isEmpty();
-      if (!valid) {
-        restoreTiles(mover.rack(), pending.placement().placements().values().stream()
-            .map(PlacedTile::tile)
-            .collect(Collectors.toList()));
-      }
-
-      state.resolveChallenge(valid);
-      if (valid) {
-        refillRack(mover.rack(), state.bag());
-        session.resetPasses();
-      }
-
-      WsMessage result = valid
-          ? new WsMessage(WsMessageType.MOVE_ACCEPTED, Map.of(
-              "player", mover.name(),
-              "score", pending.scoringResult().totalScore(),
-              "words", wordsToPayload(pending.scoringResult().words())))
-          : new WsMessage(WsMessageType.MOVE_REJECTED, Map.of(
-              "player", mover.name(),
-              "reason", "invalid_words",
-              "invalidWords", invalidWords));
-
-      WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
-      WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
-          GameSnapshot.from(session, session.status()).toPayload());
-      List<WsMessage> broadcast = new ArrayList<>(List.of(result, turn, snapshot));
-      if (valid) {
-        checkOutEndgame(session, mover, broadcast);
-      }
-      GameCommandResult base = new GameCommandResult(broadcast, List.of());
-      return withAiTurns(session, base);
     }
   }
 
@@ -273,9 +245,6 @@ public class GameService {
   }
 
   private void applyAiTurns(GameSession session, List<WsMessage> broadcast) {
-    if (applyAiResponseToPendingMove(session, broadcast)) {
-      return;
-    }
     int safety = 0;
     while ("active".equals(session.status()) && session.state().pendingMove() == null) {
       GameState state = session.state();
@@ -305,11 +274,6 @@ public class GameService {
       try {
         takePlacedTilesFromRack(bot.rack(), aiMove.placement().placements().values(), removed);
         state.applyPendingMove(aiMove.placement(), aiMove.scoringResult());
-        WsMessage proposed = new WsMessage(WsMessageType.MOVE_PROPOSED, Map.of(
-            "player", bot.name(),
-            "score", aiMove.scoringResult().totalScore(),
-            "words", wordsToPayload(aiMove.scoringResult().words()),
-            "placements", placementsToPayload(aiMove.placement().placements())));
         state.resolveChallenge(true);
         refillRack(bot.rack(), state.bag());
         session.resetPasses();
@@ -318,7 +282,6 @@ public class GameService {
             "score", aiMove.scoringResult().totalScore(),
             "words", wordsToPayload(aiMove.scoringResult().words())));
         WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
-        broadcast.add(proposed);
         broadcast.add(accepted);
         broadcast.add(turn);
         broadcast.add(snapshotMessage(session));
@@ -336,56 +299,6 @@ public class GameService {
         }
       }
     }
-  }
-
-  private boolean applyAiResponseToPendingMove(GameSession session, List<WsMessage> broadcast) {
-    GameState state = session.state();
-    PendingMove pending = state.pendingMove();
-    if (pending == null) {
-      return false;
-    }
-    int moverIndex = state.currentPlayerIndex();
-    int challengerIndex = (moverIndex + 1) % state.players().size();
-    String challengerName = state.players().get(challengerIndex).name();
-    if (!session.isBot(challengerName)) {
-      return false;
-    }
-
-    Player mover = state.players().get(moverIndex);
-    List<String> invalidWords = pending.scoringResult().words().stream()
-        .map(Word::text)
-        .filter(word -> !dictionary.contains(word))
-        .collect(Collectors.toList());
-    boolean valid = invalidWords.isEmpty();
-    if (!valid) {
-      restoreTiles(mover.rack(), pending.placement().placements().values().stream()
-          .map(PlacedTile::tile)
-          .collect(Collectors.toList()));
-    }
-
-    state.resolveChallenge(valid);
-    if (valid) {
-      refillRack(mover.rack(), state.bag());
-      session.resetPasses();
-    }
-
-    WsMessage result = valid
-        ? new WsMessage(WsMessageType.MOVE_ACCEPTED, Map.of(
-            "player", mover.name(),
-            "score", pending.scoringResult().totalScore(),
-            "words", wordsToPayload(pending.scoringResult().words())))
-        : new WsMessage(WsMessageType.MOVE_REJECTED, Map.of(
-            "player", mover.name(),
-            "reason", "invalid_words",
-            "invalidWords", invalidWords));
-    WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
-    broadcast.add(result);
-    broadcast.add(turn);
-    broadcast.add(snapshotMessage(session));
-    if (valid) {
-      return checkOutEndgame(session, mover, broadcast);
-    }
-    return false;
   }
 
   private GameSession requireSession(String roomId) {
@@ -541,14 +454,6 @@ public class GameService {
     return Map.of(
         "currentPlayerIndex", index,
         "currentPlayer", name);
-  }
-
-  private List<Map<String, Object>> placementsToPayload(Map<Coordinate, PlacedTile> placements) {
-    return placements.entrySet().stream()
-        .map(entry -> Map.<String, Object>of(
-            "coordinate", entry.getKey().format(),
-            "assignedLetter", Character.toString(entry.getValue().assignedLetter())))
-        .collect(Collectors.toList());
   }
 
   private List<Map<String, Object>> wordsToPayload(List<Word> words) {

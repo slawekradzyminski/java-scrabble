@@ -50,7 +50,7 @@ class GameControllerTest {
   }
 
   @Test
-  void commandEndpointPlaysAndChallengesMove() {
+  void commandEndpointAutoRejectsInvalidMove() {
     // given
     WebTestClient client = buildClient();
     String roomId = createRoom(client, "Room 4", "Alice");
@@ -84,19 +84,10 @@ class GameControllerTest {
         .exchange()
         .expectStatus().isOk();
 
-    client.post()
-        .uri("/api/rooms/{roomId}/game/command", roomId)
-        .bodyValue(Map.of(
-            "type", "CHALLENGE",
-            "player", "Bob",
-            "payload", Map.of()
-        ))
-        .exchange()
-        .expectStatus().isOk();
-
     // then
     Map<String, Object> after = fetchState(client, roomId, "Alice");
     assertThat(((Number) after.get("boardTiles")).intValue()).isEqualTo(0);
+    assertThat(((Number) after.get("currentPlayerIndex")).intValue()).isEqualTo(1);
   }
 
   private WebTestClient buildClient() {

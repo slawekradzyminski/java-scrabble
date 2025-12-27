@@ -52,7 +52,6 @@ public class GameController {
         case "PLAY_TILES" -> gameService.playTiles(roomId, request.player(), parser.parsePlacements(payload));
         case "EXCHANGE" -> gameService.exchange(roomId, request.player(), parser.parseTiles(payload));
         case "PASS" -> gameService.pass(roomId, request.player());
-        case "CHALLENGE" -> gameService.challenge(roomId, request.player());
         case "RESIGN" -> gameService.resign(roomId, request.player());
         default -> throw new GameCommandException(WsMessageType.ERROR, Map.of("reason", "unknown_command"));
       };

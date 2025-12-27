@@ -170,16 +170,6 @@ describe('Game', () => {
     expect(sendMock).toHaveBeenCalledWith({ type: 'PASS', payload: { player: 'Alice' } });
   });
 
-  it('sends CHALLENGE command when Challenge button is clicked', async () => {
-    render(<Game {...defaultProps} />);
-    await waitForConnection();
-    sendSnapshot();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Challenge' }));
-
-    expect(sendMock).toHaveBeenCalledWith({ type: 'CHALLENGE', payload: { player: 'Alice' } });
-  });
-
   it('sends RESIGN command when Resign button is clicked', async () => {
     render(<Game {...defaultProps} />);
     await waitForConnection();
@@ -251,23 +241,6 @@ describe('Game', () => {
     expect(screen.getAllByText('Alice').length).toBeGreaterThan(0);
   });
 
-  it('displays pending move details', async () => {
-    render(<Game {...defaultProps} />);
-    await waitForConnection();
-    sendSnapshot({
-      pendingMove: true,
-      pending: {
-        playerIndex: 0,
-        score: 15,
-        words: [{ text: 'HELLO', coordinates: [] }],
-        placements: []
-      }
-    });
-
-    expect(screen.getByText('Score: 15')).toBeInTheDocument();
-    expect(screen.getByText('Words: HELLO')).toBeInTheDocument();
-  });
-
   it('handles blank tile with prompt', async () => {
     const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('Z');
     render(<Game {...defaultProps} />);
@@ -305,7 +278,6 @@ describe('Game', () => {
     render(<Game {...defaultProps} />);
 
     expect(screen.getByRole('button', { name: 'Pass' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Challenge' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Resign' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Start' })).toBeDisabled();
   });

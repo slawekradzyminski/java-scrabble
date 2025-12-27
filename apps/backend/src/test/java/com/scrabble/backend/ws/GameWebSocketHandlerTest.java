@@ -65,7 +65,7 @@ class GameWebSocketHandlerTest {
   }
 
   @Test
-  void playTilesBroadcastsMoveProposed() {
+  void playTilesViaWebSocketUpdatesState() {
     // given
     WebTestClient client = buildClient();
     String roomId = createRoom(client, "Room Ws", "Alice");
@@ -90,18 +90,15 @@ class GameWebSocketHandlerTest {
         + "]}}";
 
     ReactorNettyWebSocketClient wsClient = new ReactorNettyWebSocketClient();
-    AtomicReference<List<String>> payloads = new AtomicReference<>();
-    
+
     // when
     wsClient.execute(URI.create("ws://localhost:" + port + "/ws?roomId=" + roomId + "&player=Alice"), session ->
-        session.send(Mono.just(session.textMessage(message)))
-            .thenMany(session.receive().map(msg -> msg.getPayloadAsText()).take(3).collectList())
-            .doOnNext(payloads::set)
-            .then()
+        session.send(Mono.just(session.textMessage(message))).then()
     ).block(Duration.ofSeconds(5));
 
     // then
-    assertThat(payloads.get()).anyMatch(payload -> payload.contains("MOVE_PROPOSED"));
+    Map<String, Object> after = waitForCurrentPlayerIndex(client, roomId, "Alice", 1);
+    assertThat(((Number) after.get("currentPlayerIndex")).intValue()).isEqualTo(1);
   }
 
   private WebTestClient buildClient() {
@@ -155,5 +152,27 @@ class GameWebSocketHandlerTest {
       }
     }
     throw new IllegalStateException("Not enough non-blank tiles");
+  }
+
+  private Map<String, Object> waitForCurrentPlayerIndex(
+      WebTestClient client,
+      String roomId,
+      String player,
+      int expectedIndex) {
+    Map<String, Object> state = null;
+    for (int attempt = 0; attempt < 20; attempt += 1) {
+      state = fetchState(client, roomId, player);
+      int currentIndex = ((Number) state.get("currentPlayerIndex")).intValue();
+      if (currentIndex == expectedIndex) {
+        return state;
+      }
+      try {
+        Thread.sleep(50);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IllegalStateException("Interrupted while waiting for state update", e);
+      }
+    }
+    return state;
   }
 }

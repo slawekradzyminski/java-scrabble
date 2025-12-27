@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 class GameServiceTest {
 
   @Test
-  void challengeAcceptsValidMoveAndAdvancesTurn() {
+  void autoAcceptsValidMoveAndAdvancesTurn() {
     // given
     RoomService roomService = new RoomService();
     Dictionary dictionary = word -> true;
@@ -39,22 +39,18 @@ class GameServiceTest {
 
     // when
     gameService.playTiles(room.id(), "Alice", placements);
-    GameSnapshot afterPlay = gameService.snapshot(room.id());
-    assertThat(afterPlay.pendingMove()).isTrue();
-
-    gameService.challenge(room.id(), "Bob");
 
     // then
-    GameSnapshot afterChallenge = gameService.snapshot(room.id());
-    assertThat(afterChallenge.pendingMove()).isFalse();
-    assertThat(afterChallenge.currentPlayerIndex()).isEqualTo(1);
-    assertThat(afterChallenge.boardTiles()).isEqualTo(2);
+    GameSnapshot afterPlay = gameService.snapshot(room.id());
+    assertThat(afterPlay.pendingMove()).isFalse();
+    assertThat(afterPlay.currentPlayerIndex()).isEqualTo(1);
+    assertThat(afterPlay.boardTiles()).isEqualTo(2);
     assertThat(alice.rack().size()).isEqualTo(7);
     assertThat(alice.score()).isPositive();
   }
 
   @Test
-  void challengeRejectsInvalidMoveAndRestoresRack() {
+  void autoRejectsInvalidMoveAndRestoresRack() {
     // given
     RoomService roomService = new RoomService();
     Dictionary dictionary = word -> false;
@@ -73,14 +69,12 @@ class GameServiceTest {
 
     // when
     gameService.playTiles(room.id(), "Alice", placements);
-    assertThat(alice.rack().size()).isEqualTo(5);
-
-    gameService.challenge(room.id(), "Bob");
 
     // then
-    GameSnapshot afterChallenge = gameService.snapshot(room.id());
-    assertThat(afterChallenge.pendingMove()).isFalse();
-    assertThat(afterChallenge.boardTiles()).isEqualTo(0);
+    GameSnapshot afterPlay = gameService.snapshot(room.id());
+    assertThat(afterPlay.pendingMove()).isFalse();
+    assertThat(afterPlay.currentPlayerIndex()).isEqualTo(1);
+    assertThat(afterPlay.boardTiles()).isEqualTo(0);
     assertThat(alice.rack().size()).isEqualTo(7);
   }
 
@@ -123,7 +117,7 @@ class GameServiceTest {
   }
 
   @Test
-  void aiChallengesPendingMoveAutomatically() {
+  void autoResolvesMoveWithoutChallenge() {
     // given
     RoomService roomService = new RoomService();
     Dictionary dictionary = word -> true;
@@ -277,7 +271,6 @@ class GameServiceTest {
 
     // when
     gameService.playTiles(room.id(), "Alice", placements);
-    gameService.challenge(room.id(), "Bob");
 
     // then
     GameSnapshot snapshot = gameService.snapshot(room.id());

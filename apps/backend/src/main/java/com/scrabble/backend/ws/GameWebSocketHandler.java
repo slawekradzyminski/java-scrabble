@@ -105,7 +105,6 @@ public class GameWebSocketHandler implements WebSocketHandler {
         case "PLAY_TILES" -> gameService.playTiles(roomId, player, parser.parsePlacements(payload));
         case "EXCHANGE" -> gameService.exchange(roomId, player, parser.parseTiles(payload));
         case "PASS" -> gameService.pass(roomId, player);
-        case "CHALLENGE" -> gameService.challenge(roomId, player);
         case "RESIGN" -> gameService.resign(roomId, player);
         default -> throw new GameCommandException(WsMessageType.ERROR, Map.of("reason", "unknown_command"));
       };

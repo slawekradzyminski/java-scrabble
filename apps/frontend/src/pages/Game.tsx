@@ -21,7 +21,8 @@ const emptySnapshot: GameSnapshot = {
   winner: null
 };
 
-type PlacementState = Record<string, BoardTile>;
+type PlacementTile = BoardTile & { rackIndex?: number };
+type PlacementState = Record<string, PlacementTile>;
 type EventLogEntry = {
   id: number;
   time: string;
@@ -40,7 +41,7 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
   const [hasSynced, setHasSynced] = useState(false);
   const [snapshot, setSnapshot] = useState<GameSnapshot>(emptySnapshot);
   const [placements, setPlacements] = useState<PlacementState>({});
-  const [activeTile, setActiveTile] = useState<RackTile | null>(null);
+  const [activeTile, setActiveTile] = useState<(RackTile & { rackIndex: number }) | null>(null);
   const [activeTileSource, setActiveTileSource] = useState<string | null>(null);
   const [activeTileLabel, setActiveTileLabel] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -58,20 +59,14 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
   const rackTiles = useMemo(() => {
     const currentPlayer = snapshot.players.find(p => p.name === player);
     const serverRackTiles = currentPlayer?.rack ?? [];
-    const placedTiles = Object.values(placements);
-    if (placedTiles.length === 0) {
-      return serverRackTiles;
+    const filled = serverRackTiles.map((tile, index) => {
+      const staging = placements[`rack-${index}`];
+      return staging ? { letter: null, points: 0, blank: false } : tile;
+    });
+    while (filled.length < 7) {
+      filled.push({ letter: null, points: 0, blank: false });
     }
-    const remaining = [...serverRackTiles];
-    for (const placed of placedTiles) {
-      const idx = remaining.findIndex(
-        (t) => t.letter === placed.letter && t.blank === placed.blank && t.points === placed.points
-      );
-      if (idx !== -1) {
-        remaining.splice(idx, 1);
-      }
-    }
-    return remaining;
+    return filled.slice(0, 7);
   }, [snapshot.players, player, placements]);
 
   const resetLocalState = useCallback(() => {
@@ -242,33 +237,42 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     const activeId = String(event.active.id);
     if (activeId.startsWith('rack-')) {
       const rackIndex = parseInt(activeId.replace('rack-', ''), 10);
-      setActiveTile(rackTiles[rackIndex] ?? null);
+      const tile = rackTiles[rackIndex];
+      if (tile && placements[`rack-${rackIndex}`]) {
+        setActiveTile(null);
+        return;
+      }
+      setActiveTile(tile ? { ...tile, rackIndex } : null);
       setActiveTileSource(null);
       setActiveTileLabel(undefined);
     } else if (activeId.startsWith('placement-')) {
       const coordinate = activeId.replace('placement-', '');
-      const placement = placements[coordinate];
-      if (placement) {
-        setActiveTile({
-          letter: placement.letter,
-          points: placement.points,
-          blank: placement.blank
-        });
-        setActiveTileSource(coordinate);
-        setActiveTileLabel(placement.assignedLetter);
-      }
+          const placement = placements[coordinate];
+          if (placement) {
+            setActiveTile({
+              letter: placement.letter,
+              points: placement.points,
+          blank: placement.blank,
+          rackIndex: placement.rackIndex ?? -1
+            });
+            setActiveTileSource(coordinate);
+            setActiveTileLabel(placement.assignedLetter);
+          }
     }
   };
 
-  const handleTileSelect = (tile: RackTile) => {
-    setActiveTile(tile);
+  const handleTileSelect = (tile: RackTile, index: number) => {
+    if (placements[`rack-${index}`]) {
+      return;
+    }
+    setActiveTile({ ...tile, rackIndex: index });
   };
 
   const handleCellClick = (id: string) => {
     applyDrop(activeTile, cellId(id));
   };
 
-  const applyDrop = (tile: RackTile | null, dropTarget: string | null) => {
+  const applyDrop = (tile: (RackTile & { rackIndex: number }) | null, dropTarget: string | null) => {
     if (!tile) {
       setActiveTile(null);
       setActiveTileSource(null);
@@ -289,6 +293,10 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
       if (activeTileSource) {
         setPlacements((prev) => {
           const next = { ...prev };
+          const rackIndex = next[activeTileSource]?.rackIndex;
+          if (typeof rackIndex === 'number' && rackIndex >= 0) {
+            delete next[`rack-${rackIndex}`];
+          }
           delete next[activeTileSource];
           return next;
         });
@@ -378,7 +386,16 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
       if (activeTileSource && activeTileSource !== coordinate) {
         delete next[activeTileSource];
       }
-      next[coordinate] = boardTile;
+      const rackKey = tile.rackIndex >= 0 ? `rack-${tile.rackIndex}` : null;
+      if (rackKey) {
+        Object.keys(next).forEach((key) => {
+          if (next[key].coordinate === rackKey) {
+            delete next[key];
+          }
+        });
+        next[rackKey] = { ...boardTile, coordinate: rackKey, rackIndex: tile.rackIndex };
+      }
+      next[coordinate] = { ...boardTile, rackIndex: tile.rackIndex };
       return next;
     });
     setActiveTile(null);
@@ -395,11 +412,13 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     if (!socket?.isConnected() || !roomId) {
       return;
     }
-    const placementsPayload = Object.values(placements).map((tile) => ({
-      coordinate: tile.coordinate,
-      letter: tile.assignedLetter,
-      blank: tile.blank
-    }));
+    const placementsPayload = Object.values(placements)
+      .filter((tile) => !tile.coordinate.startsWith('rack-'))
+      .map((tile) => ({
+        coordinate: tile.coordinate,
+        letter: tile.assignedLetter,
+        blank: tile.blank
+      }));
     socket.send({
       type: 'PLAY_TILES',
       payload: {
@@ -413,10 +432,6 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     socketRef.current?.send({ type: 'PASS', payload: { player } });
   };
 
-  const sendChallenge = () => {
-    socketRef.current?.send({ type: 'CHALLENGE', payload: { player } });
-  };
-
   const sendResign = () => {
     socketRef.current?.send({ type: 'RESIGN', payload: { player } });
   };
@@ -424,6 +439,7 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
 
   const isSocketReady = connectionState === 'connected' && hasSynced;
   const isConnecting = connectionState === 'connecting' || connectionState === 'reconnecting';
+  const hasBoardPlacements = Object.values(placements).some((tile) => !tile.coordinate.startsWith('rack-'));
 
   return (
     <>
@@ -517,9 +533,11 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
               <div className="info-section">
                 <div className="info-header">
                   <h2>Game</h2>
-                  <button type="button" onClick={handleStartGame} disabled={busy || !roomId || !isSocketReady}>
-                    Start
-                  </button>
+                  {snapshot.status === 'not_started' && (
+                    <button type="button" onClick={handleStartGame} disabled={busy || !roomId || !isSocketReady}>
+                      Start
+                    </button>
+                  )}
                 </div>
                 {error && <p className="error">{error}</p>}
                 <div className="info-meta">
@@ -555,18 +573,6 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
               <div className="info-section">
                 <h3>Players</h3>
                 <PlayerList players={snapshot.players} currentIndex={snapshot.currentPlayerIndex} />
-              </div>
-
-              <div className="info-section">
-                <h3>Pending</h3>
-                {snapshot.pending ? (
-                  <div className="pending-details">
-                    <p>Score: {snapshot.pending.score}</p>
-                    <p>Words: {snapshot.pending.words.map((word) => word.text).join(', ') || '—'}</p>
-                  </div>
-                ) : (
-                  <p className="muted">None</p>
-                )}
               </div>
 
               <div className="info-section">
@@ -606,10 +612,9 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
               </div>
 
               <div className="info-section actions">
-                <button type="button" onClick={commitMove} disabled={!Object.keys(placements).length || !isSocketReady}>Play tiles</button>
+                <button type="button" onClick={commitMove} disabled={!hasBoardPlacements || !isSocketReady}>Play tiles</button>
                 <button type="button" onClick={() => setPlacements({})} disabled={!Object.keys(placements).length}>Reset</button>
                 <button type="button" onClick={sendPass} disabled={!isSocketReady}>Pass</button>
-                <button type="button" onClick={sendChallenge} disabled={!isSocketReady}>Challenge</button>
                 <button type="button" onClick={sendResign} disabled={!isSocketReady}>Resign</button>
               </div>
             </div>

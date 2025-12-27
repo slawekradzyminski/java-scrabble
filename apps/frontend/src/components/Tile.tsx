@@ -9,6 +9,9 @@ interface TileProps {
 }
 
 export default function Tile({ tile, label, dragging, pending }: TileProps) {
+  if (tile.letter === null && !tile.blank) {
+    return <div className="tile tile--empty" />;
+  }
   const letter = label ?? tile.letter ?? '';
   const blankClass = tile.blank ? 'tile--blank' : '';
   return (

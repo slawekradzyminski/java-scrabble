@@ -17,13 +17,19 @@ function DraggableTile({
   index: number;
   onSelect?: (tile: RackTile, index: number) => void;
 }) {
+  const isPlaceholder = tile.letter === null && !tile.blank;
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: `rack-${index}`
+    id: `rack-${index}`,
+    disabled: isPlaceholder
   });
 
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined;
+
+  if (isPlaceholder) {
+    return <div className="rack-slot" aria-hidden="true" />;
+  }
 
   return (
     <button
