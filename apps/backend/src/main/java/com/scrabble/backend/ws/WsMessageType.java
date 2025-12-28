@@ -6,6 +6,8 @@ public enum WsMessageType {
   MOVE_ACCEPTED,
   MOVE_REJECTED,
   TURN_ADVANCED,
+  PASS,
+  EXCHANGE,
   GAME_ENDED,
   ERROR,
   PONG

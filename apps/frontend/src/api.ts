@@ -1,4 +1,4 @@
-import type { GameSnapshot, RoomSummary, WsMessage } from './types';
+import type { GameEventPage, GameSnapshot, RoomSummary, WsMessage } from './types';
 
 export type SnapshotListener = (snapshot: GameSnapshot) => void;
 export type EventListener = (message: WsMessage) => void;
@@ -53,6 +53,14 @@ export async function fetchSnapshot(roomId: string, player?: string): Promise<Ga
   const query = params.toString();
   const url = `${baseUrl()}/api/rooms/${roomId}/game/state${query ? `?${query}` : ''}`;
   return fetchJson<GameSnapshot>(url);
+}
+
+export async function fetchEvents(roomId: string, after = 0, limit = 50): Promise<GameEventPage> {
+  const params = new URLSearchParams();
+  params.set('after', String(after));
+  params.set('limit', String(limit));
+  const url = `${baseUrl()}/api/rooms/${roomId}/game/events?${params.toString()}`;
+  return fetchJson<GameEventPage>(url);
 }
 
 interface GameSocketConfig {

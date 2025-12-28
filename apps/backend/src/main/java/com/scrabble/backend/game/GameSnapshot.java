@@ -28,7 +28,8 @@ public record GameSnapshot(
     Map<String, Object> pending,
     String winner,
     List<Map<String, Object>> history,
-    int stateVersion) {
+    int stateVersion,
+    long lastEventId) {
 
   public static GameSnapshot from(GameSession session, String status) {
     return from(session, status, null);
@@ -54,11 +55,12 @@ public record GameSnapshot(
         pending,
         session.winner(),
         session.history(),
-        session.stateVersion());
+        session.stateVersion(),
+        session.lastEventId());
   }
 
   public static GameSnapshot missing(String roomId) {
-    return new GameSnapshot(roomId, "not_started", List.of(), 0, 0, null, false, List.of(), null, null, List.of(), 0);
+    return new GameSnapshot(roomId, "not_started", List.of(), 0, 0, null, false, List.of(), null, null, List.of(), 0, 0);
   }
 
   private static Map<String, Object> playerToMap(Player player, String viewer) {
@@ -90,6 +92,7 @@ public record GameSnapshot(
     payload.put("winner", winner);
     payload.put("history", history);
     payload.put("stateVersion", stateVersion);
+    payload.put("lastEventId", lastEventId);
     return payload;
   }
 

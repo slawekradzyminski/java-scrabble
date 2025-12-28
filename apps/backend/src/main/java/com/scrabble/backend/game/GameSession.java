@@ -7,7 +7,6 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,11 +18,12 @@ public final class GameSession {
   private final Instant createdAt;
   private final Set<String> botPlayers;
   private final Map<String, Integer> exchangesByPlayer = new HashMap<>();
-  private final Deque<Map<String, Object>> history = new ArrayDeque<>();
+  private final Deque<GameEvent> history = new ArrayDeque<>();
   private String status;
   private String winner;
   private int consecutivePasses;
   private int stateVersion;
+  private long lastEventId;
 
   GameSession(String roomId, GameState state, Instant createdAt, String status, Set<String> botPlayers) {
     this.roomId = roomId;
@@ -94,20 +94,36 @@ public final class GameSession {
   }
 
   public void recordHistory(WsMessage message) {
-    if (message.type() == WsMessageType.STATE_SNAPSHOT) {
+    if (message.type() == WsMessageType.STATE_SNAPSHOT || message.type() == WsMessageType.PONG) {
       return;
     }
-    Map<String, Object> entry = new LinkedHashMap<>();
-    entry.put("type", message.type().name());
-    entry.put("payload", message.payload());
-    entry.put("time", Instant.now().toString());
-    history.addLast(entry);
+    long eventId = ++lastEventId;
+    GameEvent event = new GameEvent(eventId, message.type(), message.payload(), Instant.now().toString());
+    history.addLast(event);
     while (history.size() > HISTORY_LIMIT) {
       history.removeFirst();
     }
   }
 
   public List<Map<String, Object>> history() {
-    return List.copyOf(history);
+    return history.stream().map(GameEvent::toMap).toList();
+  }
+
+  public long lastEventId() {
+    return lastEventId;
+  }
+
+  public List<GameEvent> eventsAfter(long afterEventId, int limit) {
+    int max = limit <= 0 ? HISTORY_LIMIT : Math.min(limit, HISTORY_LIMIT);
+    List<GameEvent> events = new java.util.ArrayList<>();
+    for (GameEvent event : history) {
+      if (event.eventId() > afterEventId) {
+        events.add(event);
+        if (events.size() >= max) {
+          break;
+        }
+      }
+    }
+    return events;
   }
 }

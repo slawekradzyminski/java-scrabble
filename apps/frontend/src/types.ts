@@ -4,6 +4,8 @@ export type WsMessageType =
   | 'MOVE_ACCEPTED'
   | 'MOVE_REJECTED'
   | 'TURN_ADVANCED'
+  | 'PASS'
+  | 'EXCHANGE'
   | 'GAME_ENDED'
   | 'ERROR'
   | 'PONG';
@@ -49,6 +51,7 @@ export interface PendingMove {
 }
 
 export interface HistoryEntry {
+  eventId: number;
   type: WsMessageType;
   payload: Record<string, unknown>;
   time: string;
@@ -67,5 +70,11 @@ export interface GameSnapshot {
   winner: string | null;
   history?: HistoryEntry[];
   stateVersion?: number;
+  lastEventId?: number;
   serverTime?: string;
+}
+
+export interface GameEventPage {
+  events: HistoryEntry[];
+  lastEventId: number;
 }

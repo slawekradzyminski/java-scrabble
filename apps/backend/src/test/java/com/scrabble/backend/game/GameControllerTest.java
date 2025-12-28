@@ -90,6 +90,43 @@ class GameControllerTest {
     assertThat(((Number) after.get("currentPlayerIndex")).intValue()).isEqualTo(1);
   }
 
+  @Test
+  void eventsEndpointReturnsHistoryWithIds() {
+    // given
+    WebTestClient client = buildClient();
+    String roomId = createRoom(client, "Room Events", "Alice");
+    client.post()
+        .uri("/api/rooms/{roomId}/join", roomId)
+        .bodyValue(Map.of("player", "Bob"))
+        .exchange()
+        .expectStatus().isOk();
+
+    client.post()
+        .uri("/api/rooms/{roomId}/game/start", roomId)
+        .exchange()
+        .expectStatus().isOk();
+
+    // when
+    client.post()
+        .uri("/api/rooms/{roomId}/game/command", roomId)
+        .bodyValue(Map.of(
+            "type", "PASS",
+            "player", "Alice",
+            "payload", Map.of()
+        ))
+        .exchange()
+        .expectStatus().isOk();
+
+    Map<String, Object> events = fetchEvents(client, roomId, 0);
+
+    // then
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> entries = (List<Map<String, Object>>) events.get("events");
+    assertThat(entries).isNotEmpty();
+    assertThat(entries.get(0)).containsKey("eventId");
+    assertThat(entries).anyMatch(entry -> "PASS".equals(entry.get("type")));
+  }
+
   private WebTestClient buildClient() {
     return WebTestClient.bindToServer()
         .baseUrl("http://localhost:" + port)
@@ -113,6 +150,19 @@ class GameControllerTest {
     return client.get()
         .uri(uriBuilder -> uriBuilder.path("/api/rooms/{roomId}/game/state")
             .queryParam("player", player)
+            .build(roomId))
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(Map.class)
+        .returnResult()
+        .getResponseBody();
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> fetchEvents(WebTestClient client, String roomId, long after) {
+    return client.get()
+        .uri(uriBuilder -> uriBuilder.path("/api/rooms/{roomId}/game/events")
+            .queryParam("after", after)
             .build(roomId))
         .exchange()
         .expectStatus().isOk()

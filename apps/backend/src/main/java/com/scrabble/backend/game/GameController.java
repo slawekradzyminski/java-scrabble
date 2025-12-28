@@ -42,6 +42,14 @@ public class GameController {
     return gameService.snapshotForPlayer(roomId, player);
   }
 
+  @GetMapping("/events")
+  public GameEventPage events(
+      @PathVariable String roomId,
+      @RequestParam(value = "after", defaultValue = "0") long after,
+      @RequestParam(value = "limit", defaultValue = "50") int limit) {
+    return gameService.eventsAfter(roomId, after, limit);
+  }
+
   @PostMapping("/command")
   public ResponseEntity<?> command(
       @PathVariable String roomId,

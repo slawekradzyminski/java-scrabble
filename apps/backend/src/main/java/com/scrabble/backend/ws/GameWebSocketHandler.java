@@ -110,6 +110,7 @@ public class GameWebSocketHandler implements WebSocketHandler {
       };
       emitAll(result.direct(), direct);
       emitAll(result.broadcast(), gameHub.sinkForRoom(roomId));
+      direct.tryEmitNext(snapshotFor(roomId, player));
     } catch (GameCommandException e) {
       direct.tryEmitNext(new WsMessage(e.type(), e.payload()));
     } catch (RuntimeException e) {

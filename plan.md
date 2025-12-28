@@ -2,6 +2,8 @@
 
 ### Progress notes
 - 2025-12-27: Ran AI simulator tests; lowered default batch min score to 600 and sanitized simulation console output to ASCII to avoid test report encoding failures.
+- 2025-12-28: Added backend event IDs + events endpoint, and frontend delta history sync on reconnect (tests updated).
+- 2025-12-28: Refactored Game page into smaller components and hooks, added event-driven snapshot fallback on WS events, and introduced shared bag/placement utilities with new frontend tests.
 
 ### Top-level structure
 - `apps/backend/` – Spring Boot WebFlux app (REST + WebSocket)

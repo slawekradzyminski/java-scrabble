@@ -214,8 +214,7 @@ body {
 }
 
 .board-cell:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(40, 25, 10, 0.18);
+  box-shadow: 0 3px 8px rgba(40, 25, 10, 0.18);
 }
 
 .tile {
@@ -237,8 +236,7 @@ body {
 }
 
 .tile--dragging {
-  transform: rotate(-4deg);
-  box-shadow: 0 8px 14px rgba(20, 10, 0, 0.25);
+  box-shadow: 0 6px 12px rgba(20, 10, 0, 0.24);
 }
 
 .tile--pending {
@@ -262,8 +260,6 @@ body {
 }
 
 .drag-overlay {
-  transform: translateZ(0);
-  will-change: transform;
   pointer-events: none;
 }
 

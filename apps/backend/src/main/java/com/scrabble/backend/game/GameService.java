@@ -94,6 +94,16 @@ public class GameService {
         .orElseGet(() -> GameSnapshot.missing(roomId));
   }
 
+  public GameEventPage eventsAfter(String roomId, long afterEventId, int limit) {
+    return registry.find(roomId)
+        .map(session -> new GameEventPage(
+            session.eventsAfter(afterEventId, limit).stream()
+                .map(GameEvent::toMap)
+                .collect(Collectors.toList()),
+            session.lastEventId()))
+        .orElseGet(() -> new GameEventPage(List.of(), 0));
+  }
+
   public GameCommandResult playTiles(String roomId, String playerName, Map<Coordinate, PlacedTile> placements) {
     GameSession session = requireSession(roomId);
     synchronized (session) {
@@ -131,6 +141,7 @@ public class GameService {
               "player", player.name(),
               "score", scoring.totalScore(),
               "words", wordsToPayload(scoring.words()),
+              "placements", placementsToPayload(placements),
               "stateVersion", session.stateVersion())));
         } else {
           session.bumpStateVersion();
@@ -171,10 +182,13 @@ public class GameService {
       state.advanceTurn();
       session.incrementPasses();
       session.bumpStateVersion();
+      WsMessage pass = new WsMessage(WsMessageType.PASS, Map.of(
+          "player", playerName,
+          "stateVersion", session.stateVersion()));
       WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, turnPayload(state, session.stateVersion()));
       WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
           GameSnapshot.from(session, session.status()).toPayload());
-      List<WsMessage> broadcast = new ArrayList<>(List.of(turn, snapshot));
+      List<WsMessage> broadcast = new ArrayList<>(List.of(pass, turn, snapshot));
       checkPassEndgame(session, broadcast);
       GameCommandResult base = new GameCommandResult(broadcast, List.of());
       return withAiTurns(session, base);
@@ -212,10 +226,14 @@ public class GameService {
         state.advanceTurn();
         session.incrementPasses();
         session.bumpStateVersion();
+        WsMessage exchange = new WsMessage(WsMessageType.EXCHANGE, Map.of(
+            "player", playerName,
+            "count", tiles.size(),
+            "stateVersion", session.stateVersion()));
         WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, turnPayload(state, session.stateVersion()));
         WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
             GameSnapshot.from(session, session.status()).toPayload());
-        List<WsMessage> broadcast = new ArrayList<>(List.of(turn, snapshot));
+        List<WsMessage> broadcast = new ArrayList<>(List.of(exchange, turn, snapshot));
         checkPassEndgame(session, broadcast);
         GameCommandResult base = new GameCommandResult(broadcast, List.of());
         return withAiTurns(session, base);
@@ -295,6 +313,7 @@ public class GameService {
             "player", bot.name(),
             "score", aiMove.scoringResult().totalScore(),
             "words", wordsToPayload(aiMove.scoringResult().words()),
+            "placements", placementsToPayload(aiMove.placement().placements()),
             "stateVersion", session.stateVersion()));
         WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, turnPayload(state, session.stateVersion()));
         broadcast.add(accepted);
@@ -492,6 +511,35 @@ public class GameService {
                 .map(Coordinate::format)
                 .collect(Collectors.toList())))
         .collect(Collectors.toList());
+  }
+
+  private List<Map<String, Object>> placementsToPayload(Map<Coordinate, PlacedTile> placements) {
+    return placements.entrySet().stream()
+        .map(entry -> placedTileToPayload(entry.getKey(), entry.getValue()))
+        .collect(Collectors.toList());
+  }
+
+  private Map<String, Object> placedTileToPayload(Coordinate coordinate, PlacedTile placed) {
+    Map<String, Object> tile = tileToPayload(placed.tile());
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("coordinate", coordinate.format());
+    payload.putAll(tile);
+    payload.put("assignedLetter", Character.toString(placed.assignedLetter()));
+    return payload;
+  }
+
+  private Map<String, Object> tileToPayload(Tile tile) {
+    if (tile.blank()) {
+      Map<String, Object> payload = new LinkedHashMap<>();
+      payload.put("letter", null);
+      payload.put("points", tile.points());
+      payload.put("blank", true);
+      return payload;
+    }
+    return Map.of(
+        "letter", Character.toString(tile.letter()),
+        "points", tile.points(),
+        "blank", false);
   }
 
   private WsMessage snapshotMessage(GameSession session) {

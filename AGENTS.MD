@@ -1,6 +1,7 @@
 # Agent Guidelines
 
 ## Required checks before final response
+- Prefer running `./run_regression.sh` to cover all backend + frontend checks in one pass.
 - Run `./gradlew test check` after changes.
 - Run `./gradlew jacocoTestReport` to refresh coverage reports.
 - Run frontend checks from `apps/frontend`:
