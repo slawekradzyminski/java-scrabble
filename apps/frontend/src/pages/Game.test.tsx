@@ -256,7 +256,7 @@ describe('Game', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Test drop blank' }));
 
-    expect(promptSpy).toHaveBeenCalledWith('Blank tile: choose a letter (A-Z)');
+    expect(screen.getByText('Choose a letter')).toBeInTheDocument();
     promptSpy.mockRestore();
   });
 
@@ -268,6 +268,7 @@ describe('Game', () => {
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Test drop blank' }));
+    await user.click(screen.getByRole('button', { name: 'Close' }));
 
     expect(screen.getByRole('button', { name: 'Play tiles' })).toBeDisabled();
     promptSpy.mockRestore();

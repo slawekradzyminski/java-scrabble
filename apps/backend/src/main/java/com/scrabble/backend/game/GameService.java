@@ -24,9 +24,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class GameService {
   private static final int MAX_EXCHANGES_PER_PLAYER = 3;
   private static final int MIN_EXCHANGE_BAG_SIZE = 7;
@@ -39,25 +41,6 @@ public class GameService {
   private final GameRackManager rackManager;
   private final GameEndgameService endgameService;
   private final GameAiService aiService;
-
-  public GameService(
-      RoomService roomService,
-      Dictionary dictionary,
-      Random random,
-      GameCommandValidator validator,
-      GameMessageFactory messageFactory,
-      GameRackManager rackManager,
-      GameEndgameService endgameService,
-      GameAiService aiService) {
-    this.roomService = roomService;
-    this.dictionary = dictionary;
-    this.random = random;
-    this.validator = validator;
-    this.messageFactory = messageFactory;
-    this.rackManager = rackManager;
-    this.endgameService = endgameService;
-    this.aiService = aiService;
-  }
 
   public GameSession start(String roomId) {
     return registry.find(roomId).orElseGet(() -> {
@@ -244,10 +227,10 @@ public class GameService {
   }
 
   private GameCommandResult withAiTurns(GameSession session, GameCommandResult base) {
-    List<WsMessage> broadcast = new ArrayList<>(base.broadcast());
+    List<WsMessage> broadcast = new ArrayList<>(base.getBroadcast());
     aiService.applyAiTurns(session, broadcast);
     recordHistory(session, broadcast);
-    return new GameCommandResult(broadcast, base.direct());
+    return new GameCommandResult(broadcast, base.getDirect());
   }
 
   private GameSession requireSession(String roomId) {

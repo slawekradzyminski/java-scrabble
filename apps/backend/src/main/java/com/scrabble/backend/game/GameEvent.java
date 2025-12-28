@@ -3,8 +3,18 @@ package com.scrabble.backend.game;
 import com.scrabble.backend.ws.WsMessageType;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-public record GameEvent(long eventId, WsMessageType type, Map<String, Object> payload, String time) {
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class GameEvent {
+  private long eventId;
+  private WsMessageType type;
+  private Map<String, Object> payload;
+  private String time;
 
   public Map<String, Object> toMap() {
     Map<String, Object> entry = new LinkedHashMap<>();

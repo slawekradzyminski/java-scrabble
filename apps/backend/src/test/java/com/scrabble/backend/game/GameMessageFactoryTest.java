@@ -30,11 +30,11 @@ class GameMessageFactoryTest {
     WsMessage message = factory.moveAccepted(player, scoring, placements, 3);
 
     // then
-    assertThat(message.type().name()).isEqualTo("MOVE_ACCEPTED");
-    assertThat(message.payload()).containsEntry("player", "Alice");
-    assertThat(message.payload()).containsEntry("score", 12);
-    assertThat(message.payload()).containsEntry("stateVersion", 3);
-    assertThat(message.payload().get("placements")).isInstanceOf(List.class);
-    assertThat(message.payload().get("words")).isInstanceOf(List.class);
+    assertThat(message.getType().name()).isEqualTo("MOVE_ACCEPTED");
+    assertThat(message.getPayload()).containsEntry("player", "Alice");
+    assertThat(message.getPayload()).containsEntry("score", 12);
+    assertThat(message.getPayload()).containsEntry("stateVersion", 3);
+    assertThat(message.getPayload().get("placements")).isInstanceOf(List.class);
+    assertThat(message.getPayload().get("words")).isInstanceOf(List.class);
   }
 }

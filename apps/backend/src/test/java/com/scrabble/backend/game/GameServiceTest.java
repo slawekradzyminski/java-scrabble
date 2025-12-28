@@ -66,9 +66,9 @@ class GameServiceTest {
 
     // then
     GameSnapshot afterPlay = gameService.snapshot(room.id());
-    assertThat(afterPlay.pendingMove()).isFalse();
-    assertThat(afterPlay.currentPlayerIndex()).isEqualTo(1);
-    assertThat(afterPlay.boardTiles()).isEqualTo(2);
+    assertThat(afterPlay.isPendingMove()).isFalse();
+    assertThat(afterPlay.getCurrentPlayerIndex()).isEqualTo(1);
+    assertThat(afterPlay.getBoardTiles()).isEqualTo(2);
     assertThat(alice.rack().size()).isEqualTo(7);
     assertThat(alice.score()).isPositive();
   }
@@ -93,9 +93,9 @@ class GameServiceTest {
 
     // then
     GameSnapshot afterPlay = gameService.snapshot(room.id());
-    assertThat(afterPlay.pendingMove()).isFalse();
-    assertThat(afterPlay.currentPlayerIndex()).isEqualTo(1);
-    assertThat(afterPlay.boardTiles()).isEqualTo(0);
+    assertThat(afterPlay.isPendingMove()).isFalse();
+    assertThat(afterPlay.getCurrentPlayerIndex()).isEqualTo(1);
+    assertThat(afterPlay.getBoardTiles()).isEqualTo(0);
     assertThat(alice.rack().size()).isEqualTo(7);
   }
 
@@ -111,7 +111,7 @@ class GameServiceTest {
 
     // then
     GameSnapshot snapshot = gameService.snapshot(room.id());
-    assertThat(snapshot.currentPlayerIndex()).isEqualTo(1);
+    assertThat(snapshot.getCurrentPlayerIndex()).isEqualTo(1);
   }
 
   @Test
@@ -125,8 +125,8 @@ class GameServiceTest {
 
     // then
     GameSnapshot snapshot = gameService.snapshot(room.id());
-    assertThat(snapshot.currentPlayerIndex()).isEqualTo(0);
-    assertThat(snapshot.pendingMove()).isFalse();
+    assertThat(snapshot.getCurrentPlayerIndex()).isEqualTo(0);
+    assertThat(snapshot.isPendingMove()).isFalse();
   }
 
   @Test
@@ -146,7 +146,7 @@ class GameServiceTest {
 
     // then
     GameSnapshot snapshot = gameService.snapshot(room.id());
-    assertThat(snapshot.pendingMove()).isFalse();
+    assertThat(snapshot.isPendingMove()).isFalse();
     assertThat(alice.rack().size()).isEqualTo(7);
     assertThat(alice.score()).isPositive();
   }
@@ -165,7 +165,7 @@ class GameServiceTest {
 
     // then
     GameSnapshot snapshot = gameService.snapshot(room.id());
-    assertThat(snapshot.currentPlayerIndex()).isEqualTo(1);
+    assertThat(snapshot.getCurrentPlayerIndex()).isEqualTo(1);
     assertThat(alice.rack().size()).isEqualTo(7);
   }
 
@@ -184,7 +184,7 @@ class GameServiceTest {
         .isInstanceOf(GameCommandException.class)
         .satisfies(error -> {
           GameCommandException exception = (GameCommandException) error;
-          assertThat(exception.payload().get("reason")).isEqualTo(GameCommandReasons.BAG_TOO_SMALL);
+          assertThat(exception.getPayload().get("reason")).isEqualTo(GameCommandReasons.BAG_TOO_SMALL);
         });
   }
 
@@ -212,7 +212,7 @@ class GameServiceTest {
         .isInstanceOf(GameCommandException.class)
         .satisfies(error -> {
           GameCommandException exception = (GameCommandException) error;
-          assertThat(exception.payload().get("reason")).isEqualTo(GameCommandReasons.EXCHANGE_LIMIT_REACHED);
+          assertThat(exception.getPayload().get("reason")).isEqualTo(GameCommandReasons.EXCHANGE_LIMIT_REACHED);
         });
   }
 
@@ -228,8 +228,8 @@ class GameServiceTest {
 
     // then
     GameSnapshot snapshot = gameService.snapshot(room.id());
-    assertThat(snapshot.status()).isEqualTo("ended");
-    assertThat(snapshot.winner()).isEqualTo("Bob");
+    assertThat(snapshot.getStatus()).isEqualTo("ended");
+    assertThat(snapshot.getWinner()).isEqualTo("Bob");
   }
 
   @Test
@@ -263,8 +263,8 @@ class GameServiceTest {
 
     // then
     GameSnapshot snapshot = gameService.snapshot(room.id());
-    assertThat(snapshot.status()).isEqualTo("ended");
-    assertThat(snapshot.winner()).isEqualTo("Alice");
+    assertThat(snapshot.getStatus()).isEqualTo("ended");
+    assertThat(snapshot.getWinner()).isEqualTo("Alice");
     assertThat(alice.score()).isGreaterThan(bob.score());
   }
 
@@ -283,9 +283,9 @@ class GameServiceTest {
 
     // then
     GameSnapshot snapshot = gameService.snapshot(room.id());
-    assertThat(snapshot.status()).isEqualTo("ended");
-    assertThat(snapshot.winner()).isNotNull();
-    assertThat(snapshot.players()).allSatisfy(player ->
+    assertThat(snapshot.getStatus()).isEqualTo("ended");
+    assertThat(snapshot.getWinner()).isNotNull();
+    assertThat(snapshot.getPlayers()).allSatisfy(player ->
         assertThat(((Number) player.get("score")).intValue()).isLessThanOrEqualTo(0));
   }
 

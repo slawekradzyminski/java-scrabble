@@ -15,21 +15,31 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 
-public record GameSnapshot(
-    String roomId,
-    String status,
-    List<Map<String, Object>> players,
-    int bagCount,
-    int boardTiles,
-    Integer currentPlayerIndex,
-    boolean pendingMove,
-    List<Map<String, Object>> board,
-    Map<String, Object> pending,
-    String winner,
-    List<Map<String, Object>> history,
-    int stateVersion,
-    long lastEventId) {
+@Getter
+@ToString
+@EqualsAndHashCode
+@AllArgsConstructor
+@Builder
+public class GameSnapshot {
+  private final String roomId;
+  private final String status;
+  private final List<Map<String, Object>> players;
+  private final int bagCount;
+  private final int boardTiles;
+  private final Integer currentPlayerIndex;
+  private final boolean pendingMove;
+  private final List<Map<String, Object>> board;
+  private final Map<String, Object> pending;
+  private final String winner;
+  private final List<Map<String, Object>> history;
+  private final int stateVersion;
+  private final long lastEventId;
 
   public static GameSnapshot from(GameSession session, String status) {
     return from(session, status, null);

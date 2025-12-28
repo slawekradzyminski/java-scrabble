@@ -10,4 +10,5 @@ export type EventLogEntry = {
   time: string;
   type: WsMessage['type'];
   summary: string;
+  payload?: Record<string, unknown>;
 };

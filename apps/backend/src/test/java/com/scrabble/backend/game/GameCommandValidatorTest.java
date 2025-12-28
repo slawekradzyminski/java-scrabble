@@ -24,7 +24,7 @@ class GameCommandValidatorTest {
         .isInstanceOf(GameCommandException.class)
         .satisfies(error -> {
           GameCommandException exception = (GameCommandException) error;
-          assertThat(exception.payload().get("reason")).isEqualTo(GameCommandReasons.UNKNOWN_PLAYER);
+          assertThat(exception.getPayload().get("reason")).isEqualTo(GameCommandReasons.UNKNOWN_PLAYER);
         });
   }
 
@@ -40,7 +40,7 @@ class GameCommandValidatorTest {
         .isInstanceOf(GameCommandException.class)
         .satisfies(error -> {
           GameCommandException exception = (GameCommandException) error;
-          assertThat(exception.payload().get("reason")).isEqualTo(GameCommandReasons.NOT_YOUR_TURN);
+          assertThat(exception.getPayload().get("reason")).isEqualTo(GameCommandReasons.NOT_YOUR_TURN);
         });
   }
 }

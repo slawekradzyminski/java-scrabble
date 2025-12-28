@@ -4,6 +4,10 @@
 - 2025-12-27: Ran AI simulator tests; lowered default batch min score to 600 and sanitized simulation console output to ASCII to avoid test report encoding failures.
 - 2025-12-28: Added backend event IDs + events endpoint, and frontend delta history sync on reconnect (tests updated).
 - 2025-12-28: Refactored Game page into smaller components and hooks, added event-driven snapshot fallback on WS events, and introduced shared bag/placement utilities with new frontend tests.
+- 2025-12-28: Tweaked sidebar info-section styling (last move + preview) for a more polished look.
+- 2025-12-28: Strengthened GPU-safe styling by flattening gradients/shadows on board, rack, and panels.
+- 2025-12-28: Included event payloads for REST-hydrated history so last-move summaries can show score/words.
+- 2025-12-28: Removed debug panel row and aligned board/rack to the top of the game column.
 
 ### Top-level structure
 - `apps/backend/` – Spring Boot WebFlux app (REST + WebSocket)

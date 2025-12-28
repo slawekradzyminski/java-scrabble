@@ -94,11 +94,11 @@ public final class GameSession {
   }
 
   public void recordHistory(WsMessage message) {
-    if (message.type() == WsMessageType.STATE_SNAPSHOT || message.type() == WsMessageType.PONG) {
+    if (message.getType() == WsMessageType.STATE_SNAPSHOT || message.getType() == WsMessageType.PONG) {
       return;
     }
     long eventId = ++lastEventId;
-    GameEvent event = new GameEvent(eventId, message.type(), message.payload(), Instant.now().toString());
+    GameEvent event = new GameEvent(eventId, message.getType(), message.getPayload(), Instant.now().toString());
     history.addLast(event);
     while (history.size() > HISTORY_LIMIT) {
       history.removeFirst();
@@ -117,7 +117,7 @@ public final class GameSession {
     int max = limit <= 0 ? HISTORY_LIMIT : Math.min(limit, HISTORY_LIMIT);
     List<GameEvent> events = new java.util.ArrayList<>();
     for (GameEvent event : history) {
-      if (event.eventId() > afterEventId) {
+      if (event.getEventId() > afterEventId) {
         events.add(event);
         if (events.size() >= max) {
           break;

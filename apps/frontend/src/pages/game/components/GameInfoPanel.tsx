@@ -48,12 +48,6 @@ export default function GameInfoPanel({
             </button>
           </strong>
         </div>
-        <div className="debug-meta">
-          <span>Debug</span>
-          <strong>
-            v{snapshot.stateVersion ?? 0} · tiles {snapshot.boardTiles}
-          </strong>
-        </div>
         {snapshot.winner && (
           <div>
             <span>Winner</span>

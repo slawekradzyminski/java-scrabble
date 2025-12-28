@@ -19,6 +19,7 @@ describe('GameActions', () => {
         onReset={onReset}
         onPass={onPass}
         onResign={onResign}
+        previewText="Preview: AB (8 pts)"
       />
     );
     fireEvent.click(screen.getByRole('button', { name: 'Play tiles' }));
@@ -27,6 +28,7 @@ describe('GameActions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Resign' }));
 
     // then
+    expect(screen.getByText('Preview: AB (8 pts)')).toBeInTheDocument();
     expect(onPlay).toHaveBeenCalled();
     expect(onReset).toHaveBeenCalled();
     expect(onPass).toHaveBeenCalled();

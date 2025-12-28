@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.socket.WebSocketHandler;
 import org.springframework.web.reactive.socket.WebSocketMessage;
@@ -20,22 +21,12 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 @Component
+@RequiredArgsConstructor
 public class GameWebSocketHandler implements WebSocketHandler {
   private final ObjectMapper objectMapper;
   private final GameService gameService;
   private final GameHub gameHub;
   private final GameCommandParser parser;
-
-  public GameWebSocketHandler(
-      ObjectMapper objectMapper,
-      GameService gameService,
-      GameHub gameHub,
-      GameCommandParser parser) {
-    this.objectMapper = objectMapper;
-    this.gameService = gameService;
-    this.gameHub = gameHub;
-    this.parser = parser;
-  }
 
   @Override
   public Mono<Void> handle(WebSocketSession session) {
@@ -108,11 +99,11 @@ public class GameWebSocketHandler implements WebSocketHandler {
         case "RESIGN" -> gameService.resign(roomId, player);
         default -> throw new GameCommandException(WsMessageType.ERROR, Map.of("reason", "unknown_command"));
       };
-      emitAll(result.direct(), direct);
-      emitAll(result.broadcast(), gameHub.sinkForRoom(roomId));
+      emitAll(result.getDirect(), direct);
+      emitAll(result.getBroadcast(), gameHub.sinkForRoom(roomId));
       direct.tryEmitNext(snapshotFor(roomId, player));
     } catch (GameCommandException e) {
-      direct.tryEmitNext(new WsMessage(e.type(), e.payload()));
+      direct.tryEmitNext(new WsMessage(e.getType(), e.getPayload()));
     } catch (RuntimeException e) {
       direct.tryEmitNext(new WsMessage(WsMessageType.ERROR, Map.of("reason", "server_error")));
     }

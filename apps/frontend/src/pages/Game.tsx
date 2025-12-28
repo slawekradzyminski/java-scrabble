@@ -4,6 +4,7 @@ import type { RackTile } from '../types';
 import { joinRoom, startGame } from '../api';
 import BoardSection from './game/components/BoardSection';
 import BagModal from './game/components/BagModal';
+import BlankLetterModal from './game/components/BlankLetterModal';
 import GameActions from './game/components/GameActions';
 import GameHeader from './game/components/GameHeader';
 import GameInfoPanel from './game/components/GameInfoPanel';
@@ -13,6 +14,7 @@ import { useGameSocket } from './game/hooks/useGameSocket';
 import { usePlacements } from './game/hooks/usePlacements';
 import { useRackTiles } from './game/hooks/useRackTiles';
 import { BAG_TILES, buildUsedTileCounts } from './game/utils/bagTiles';
+import { scoreMove } from './game/utils/scoreMove';
 
 interface GameProps {
   roomId: string;
@@ -41,7 +43,10 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     handleCellClick,
     applyDrop,
     resetLocalState,
-    getHasPlacements
+    getHasPlacements,
+    pendingBlank,
+    confirmBlank,
+    cancelBlank
   } = usePlacements({
     getRackTile: (index) => rackTilesRef.current[index]
   });
@@ -159,6 +164,27 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
 
   const opponentRackSize = snapshot.players.find(p => p.name !== player)?.rackSize ?? 0;
 
+  const lastMove = useMemo(() => {
+    const entry = eventLog.find((item) => item.type === 'MOVE_ACCEPTED');
+    if (!entry || !entry.payload) {
+      return entry?.summary ?? null;
+    }
+    const playerName = typeof entry.payload.player === 'string' ? entry.payload.player : null;
+    const score = typeof entry.payload.score === 'number' ? entry.payload.score : null;
+    const wordsPayload = Array.isArray(entry.payload.words) ? entry.payload.words : [];
+    const words = wordsPayload.map((word: { text?: string }) => word.text).filter(Boolean) as string[];
+    if (words.length === 0 && score === null) {
+      return entry.summary;
+    }
+    const nameLabel = playerName ?? 'Unknown';
+    const wordsLabel = words.length > 0 ? words.join(', ') : 'word';
+    const scoreLabel = score !== null ? ` (+${score} pts)` : '';
+    return `${nameLabel} played ${wordsLabel}${scoreLabel}`;
+  }, [eventLog]);
+
+  const movePreview = useMemo(() => scoreMove(snapshot.board, placements), [snapshot.board, placements]);
+  const previewText = movePreview ? `Preview: ${movePreview.words.join(', ')} (${movePreview.score} pts)` : undefined;
+
   return (
     <>
       <GameHeader
@@ -204,6 +230,13 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
                 currentIndex={snapshot.currentPlayerIndex}
               />
 
+              {lastMove ? (
+                <div className="info-section last-move">
+                  <h3>Last move</h3>
+                  <p className="last-move__text">{lastMove}</p>
+                </div>
+              ) : null}
+
               <HistoryPanel
                 eventLog={eventLog}
                 lastEventAt={lastEventAt}
@@ -219,6 +252,7 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
                 onReset={resetLocalState}
                 onPass={sendPass}
                 onResign={sendResign}
+                previewText={previewText}
               />
             </div>
           </aside>
@@ -232,6 +266,12 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
           bagTiles={BAG_TILES}
           usedTiles={usedTiles}
           onClose={() => setBagModalOpen(false)}
+        />
+      )}
+      {pendingBlank && (
+        <BlankLetterModal
+          onSelect={confirmBlank}
+          onCancel={cancelBlank}
         />
       )}
     </>

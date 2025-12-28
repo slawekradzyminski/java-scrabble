@@ -13,6 +13,11 @@ export function usePlacements({ getRackTile }: UsePlacementsOptions) {
   const [activeTile, setActiveTile] = useState<ActiveTile | null>(null);
   const [activeTileSource, setActiveTileSource] = useState<string | null>(null);
   const [activeTileLabel, setActiveTileLabel] = useState<string | undefined>(undefined);
+  const [pendingBlank, setPendingBlank] = useState<{
+    tile: ActiveTile;
+    coordinate: string;
+    source: string | null;
+  } | null>(null);
 
   const placementsRef = useRef<PlacementState>({});
 
@@ -25,7 +30,40 @@ export function usePlacements({ getRackTile }: UsePlacementsOptions) {
     setActiveTile(null);
     setActiveTileSource(null);
     setActiveTileLabel(undefined);
+    setPendingBlank(null);
   }, []);
+
+  const commitPlacement = useCallback((tile: ActiveTile, coordinate: string, source: string | null, assignedLetterOverride?: string) => {
+    const assignedLetter = assignedLetterOverride
+      ?? (source && placements[source]?.assignedLetter)
+      ?? tile.letter
+      ?? '';
+
+    const boardTile: BoardTile = {
+      coordinate,
+      letter: tile.letter,
+      points: tile.points,
+      blank: tile.blank,
+      assignedLetter
+    };
+    setPlacements((prev) => {
+      const next = { ...prev };
+      if (source && source !== coordinate) {
+        delete next[source];
+      }
+      const rackKey = tile.rackIndex >= 0 ? `rack-${tile.rackIndex}` : null;
+      if (rackKey) {
+        Object.keys(next).forEach((key) => {
+          if (next[key].coordinate === rackKey) {
+            delete next[key];
+          }
+        });
+        next[rackKey] = { ...boardTile, coordinate: rackKey, rackIndex: tile.rackIndex };
+      }
+      next[coordinate] = { ...boardTile, rackIndex: tile.rackIndex };
+      return next;
+    });
+  }, [placements]);
 
   const applyDrop = useCallback((tile: ActiveTile | null, dropTarget: string | null) => {
     if (!tile || !dropTarget) {
@@ -107,53 +145,35 @@ export function usePlacements({ getRackTile }: UsePlacementsOptions) {
       return;
     }
 
-    let assignedLetter = tile.letter ?? '';
     if (tile.blank && !placements[coordinate]) {
       const existingPlacement = activeTileSource ? placements[activeTileSource] : null;
       if (!existingPlacement) {
-        const promptValue = window.prompt('Blank tile: choose a letter (A-Z)');
-        if (!promptValue || promptValue.trim().length !== 1) {
-          setActiveTile(null);
-          setActiveTileSource(null);
-          setActiveTileLabel(undefined);
-          return;
-        }
-        assignedLetter = promptValue.trim().toUpperCase();
-      } else {
-        assignedLetter = existingPlacement.assignedLetter;
+        setPendingBlank({ tile, coordinate, source: activeTileSource });
+        setActiveTile(null);
+        setActiveTileSource(null);
+        setActiveTileLabel(undefined);
+        return;
       }
-    } else if (activeTileSource && placements[activeTileSource]) {
-      assignedLetter = placements[activeTileSource].assignedLetter;
+      commitPlacement(tile, coordinate, activeTileSource, existingPlacement.assignedLetter);
+    } else {
+      commitPlacement(tile, coordinate, activeTileSource);
     }
-
-    const boardTile: BoardTile = {
-      coordinate,
-      letter: tile.letter,
-      points: tile.points,
-      blank: tile.blank,
-      assignedLetter
-    };
-    setPlacements((prev) => {
-      const next = { ...prev };
-      if (activeTileSource && activeTileSource !== coordinate) {
-        delete next[activeTileSource];
-      }
-      const rackKey = tile.rackIndex >= 0 ? `rack-${tile.rackIndex}` : null;
-      if (rackKey) {
-        Object.keys(next).forEach((key) => {
-          if (next[key].coordinate === rackKey) {
-            delete next[key];
-          }
-        });
-        next[rackKey] = { ...boardTile, coordinate: rackKey, rackIndex: tile.rackIndex };
-      }
-      next[coordinate] = { ...boardTile, rackIndex: tile.rackIndex };
-      return next;
-    });
     setActiveTile(null);
     setActiveTileSource(null);
     setActiveTileLabel(undefined);
-  }, [activeTileSource, placements]);
+  }, [activeTileSource, commitPlacement, placements]);
+
+  const confirmBlank = useCallback((letter: string) => {
+    if (!pendingBlank) {
+      return;
+    }
+    commitPlacement(pendingBlank.tile, pendingBlank.coordinate, pendingBlank.source, letter);
+    setPendingBlank(null);
+  }, [commitPlacement, pendingBlank]);
+
+  const cancelBlank = useCallback(() => {
+    setPendingBlank(null);
+  }, []);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const activeId = String(event.active.id);
@@ -221,6 +241,9 @@ export function usePlacements({ getRackTile }: UsePlacementsOptions) {
     hasBoardPlacements,
     activeTile,
     activeTileLabel,
+    pendingBlank,
+    confirmBlank,
+    cancelBlank,
     handleDragStart,
     handleDragEnd,
     handleTileSelect,

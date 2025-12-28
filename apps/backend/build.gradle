@@ -11,10 +11,14 @@ dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-actuator'
   implementation libs.jackson.databind
   implementation libs.jackson.jsr310
+  compileOnly libs.lombok
+  annotationProcessor libs.lombok
 
   testImplementation 'org.springframework.boot:spring-boot-starter-test'
   testImplementation libs.assertj.core
   testImplementation 'io.projectreactor:reactor-test'
+  testCompileOnly libs.lombok
+  testAnnotationProcessor libs.lombok
 }
 
 tasks.named('test') {

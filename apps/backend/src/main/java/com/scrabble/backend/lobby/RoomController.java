@@ -1,6 +1,10 @@
 package com.scrabble.backend.lobby;
 
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -10,12 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/rooms")
+@RequiredArgsConstructor
 public class RoomController {
   private final RoomService roomService;
-
-  public RoomController(RoomService roomService) {
-    this.roomService = roomService;
-  }
 
   @GetMapping
   public List<RoomResponse> listRooms() {
@@ -24,22 +25,41 @@ public class RoomController {
 
   @PostMapping
   public RoomResponse create(@RequestBody CreateRoomRequest request) {
-    boolean addAi = Boolean.TRUE.equals(request.ai());
-    Room room = roomService.create(request.name(), request.owner(), addAi);
+    boolean addAi = Boolean.TRUE.equals(request.getAi());
+    Room room = roomService.create(request.getName(), request.getOwner(), addAi);
     return RoomResponse.from(room);
   }
 
   @PostMapping("/{roomId}/join")
   public RoomResponse join(@PathVariable String roomId, @RequestBody JoinRoomRequest request) {
-    Room room = roomService.join(roomId, request.player());
+    Room room = roomService.join(roomId, request.getPlayer());
     return RoomResponse.from(room);
   }
 
-  public record CreateRoomRequest(String name, String owner, Boolean ai) { }
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class CreateRoomRequest {
+    private String name;
+    private String owner;
+    private Boolean ai;
+  }
 
-  public record JoinRoomRequest(String player) { }
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class JoinRoomRequest {
+    private String player;
+  }
 
-  public record RoomResponse(String id, String name, List<String> players) {
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class RoomResponse {
+    private String id;
+    private String name;
+    private List<String> players;
+
     public static RoomResponse from(Room room) {
       return new RoomResponse(room.id(), room.name(), room.players());
     }

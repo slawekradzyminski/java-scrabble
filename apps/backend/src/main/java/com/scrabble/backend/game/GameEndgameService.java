@@ -5,16 +5,14 @@ import com.scrabble.engine.GameState;
 import com.scrabble.engine.Player;
 import com.scrabble.engine.Tile;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public final class GameEndgameService {
   private static final int MAX_CONSECUTIVE_PASSES = 4;
   private final GameMessageFactory messageFactory;
-
-  public GameEndgameService(GameMessageFactory messageFactory) {
-    this.messageFactory = messageFactory;
-  }
 
   boolean checkOutEndgame(GameSession session, Player mover, List<WsMessage> broadcast) {
     GameState state = session.state();

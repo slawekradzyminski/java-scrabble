@@ -9,6 +9,10 @@ import com.scrabble.backend.ws.WsMessage;
 import com.scrabble.backend.ws.WsMessageType;
 import java.util.List;
 import java.util.Map;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,16 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/rooms/{roomId}/game")
+@RequiredArgsConstructor
 public class GameController {
   private final GameService gameService;
   private final ObjectMapper objectMapper;
   private final GameCommandParser parser;
-
-  public GameController(GameService gameService, ObjectMapper objectMapper, GameCommandParser parser) {
-    this.gameService = gameService;
-    this.objectMapper = objectMapper;
-    this.parser = parser;
-  }
 
   @PostMapping("/start")
   public GameSnapshot start(@PathVariable String roomId) {
@@ -54,22 +53,35 @@ public class GameController {
   public ResponseEntity<?> command(
       @PathVariable String roomId,
       @RequestBody GameCommandRequest request) {
-    JsonNode payload = objectMapper.valueToTree(request.payload());
+    JsonNode payload = objectMapper.valueToTree(request.getPayload());
     try {
-      GameCommandResult result = switch (request.type()) {
-        case "PLAY_TILES" -> gameService.playTiles(roomId, request.player(), parser.parsePlacements(payload));
-        case "EXCHANGE" -> gameService.exchange(roomId, request.player(), parser.parseTiles(payload));
-        case "PASS" -> gameService.pass(roomId, request.player());
-        case "RESIGN" -> gameService.resign(roomId, request.player());
+      GameCommandResult result = switch (request.getType()) {
+        case "PLAY_TILES" -> gameService.playTiles(roomId, request.getPlayer(), parser.parsePlacements(payload));
+        case "EXCHANGE" -> gameService.exchange(roomId, request.getPlayer(), parser.parseTiles(payload));
+        case "PASS" -> gameService.pass(roomId, request.getPlayer());
+        case "RESIGN" -> gameService.resign(roomId, request.getPlayer());
         default -> throw new GameCommandException(WsMessageType.ERROR, Map.of("reason", "unknown_command"));
       };
-      return ResponseEntity.ok(new GameCommandResponse(result.broadcast(), result.direct()));
+      return ResponseEntity.ok(new GameCommandResponse(result.getBroadcast(), result.getDirect()));
     } catch (GameCommandException e) {
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new WsMessage(e.type(), e.payload()));
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new WsMessage(e.getType(), e.getPayload()));
     }
   }
 
-  public record GameCommandRequest(String type, String player, Map<String, Object> payload) { }
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class GameCommandRequest {
+    private String type;
+    private String player;
+    private Map<String, Object> payload;
+  }
 
-  public record GameCommandResponse(List<WsMessage> broadcast, List<WsMessage> direct) { }
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class GameCommandResponse {
+    private List<WsMessage> broadcast;
+    private List<WsMessage> direct;
+  }
 }

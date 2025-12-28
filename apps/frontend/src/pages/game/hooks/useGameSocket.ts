@@ -131,7 +131,8 @@ export function useGameSocket({ onResetLocal, hasLocalPlacements }: UseGameSocke
         id: eventId ?? nextSyntheticId(),
         time,
         type: message.type,
-        summary: summarizeEvent(message)
+        summary: summarizeEvent(message),
+        payload: message.payload
       });
     }
     if (mapped.length === 0) {
@@ -173,7 +174,8 @@ export function useGameSocket({ onResetLocal, hasLocalPlacements }: UseGameSocke
       id: nextSyntheticId(),
       time: new Date().toLocaleTimeString(),
       type: message.type,
-      summary: summarizeEvent(message)
+      summary: summarizeEvent(message),
+      payload: message.payload
     };
     setEventLog((prev) => [entry, ...prev].slice(0, 50));
     setLastEventAt(Date.now());
@@ -197,7 +199,8 @@ export function useGameSocket({ onResetLocal, hasLocalPlacements }: UseGameSocke
         id: eventId ?? nextSyntheticId(),
         time,
         type: message.type,
-        summary: summarizeEvent(message)
+        summary: summarizeEvent(message),
+        payload: message.payload
       });
     }
     setEventLog(entries.slice(0, 50));
