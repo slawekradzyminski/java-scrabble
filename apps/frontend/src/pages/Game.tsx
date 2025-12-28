@@ -56,6 +56,9 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
   const eventCounterRef = useRef(0);
   const historyHydratedRef = useRef(false);
   const lastServerStateRef = useRef<{ boardTiles: number; currentPlayerIndex: number | null; status: string } | null>(null);
+  const lastStateVersionRef = useRef<number | null>(null);
+  const lastHistoryVersionRef = useRef<number | null>(null);
+  const lastSnapshotVersionRef = useRef<number | null>(null);
   const placementsRef = useRef<PlacementState>({});
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -138,6 +141,14 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     if (message.type === 'STATE_SNAPSHOT' || message.type === 'PONG') {
       return;
     }
+    const versionPayload = message.payload?.stateVersion;
+    const nextVersion = typeof versionPayload === 'number' ? versionPayload : null;
+    if (nextVersion !== null) {
+      const previousVersion = lastStateVersionRef.current;
+      if (previousVersion === null || nextVersion > previousVersion) {
+        lastStateVersionRef.current = nextVersion;
+      }
+    }
     const entry: EventLogEntry = {
       id: (eventCounterRef.current += 1),
       time: new Date().toLocaleTimeString(),
@@ -184,6 +195,9 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     setEventLog([]);
     eventCounterRef.current = 0;
     historyHydratedRef.current = false;
+    lastStateVersionRef.current = null;
+    lastHistoryVersionRef.current = null;
+    lastServerStateRef.current = null;
     setSnapshot({ ...emptySnapshot, roomId: targetRoomId });
     resetLocalState();
 
@@ -196,13 +210,20 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     });
 
     socket.onSnapshot((next) => {
-      setSnapshot((prev) => mergeSnapshot(prev, next));
+      const nextVersion = next.stateVersion ?? 0;
+      const previousVersion = lastStateVersionRef.current;
       const playerIndex = next.players.findIndex((p) => p.name === targetPlayer);
       const previousState = lastServerStateRef.current;
       const serverStateChanged = !previousState
         || previousState.boardTiles !== next.boardTiles
         || previousState.currentPlayerIndex !== next.currentPlayerIndex
         || previousState.status !== next.status;
+      if (previousVersion !== null && nextVersion < previousVersion) {
+        setHasSynced(true);
+        return;
+      }
+      setSnapshot((prev) => mergeSnapshot(prev, next));
+      lastSnapshotVersionRef.current = nextVersion;
       const hasPlacements = Object.keys(placementsRef.current).length > 0;
       const notPlayersTurn = playerIndex === -1 || next.currentPlayerIndex !== playerIndex;
       if (serverStateChanged || (hasPlacements && notPlayersTurn)) {
@@ -213,10 +234,12 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
         currentPlayerIndex: next.currentPlayerIndex,
         status: next.status
       };
+      lastStateVersionRef.current = previousVersion === null ? nextVersion : Math.max(previousVersion, nextVersion);
       setHasSynced(true);
-      if (!historyHydratedRef.current) {
+      if (!historyHydratedRef.current || (lastHistoryVersionRef.current !== null && nextVersion > lastHistoryVersionRef.current)) {
         hydrateEventLog(next.history);
         historyHydratedRef.current = true;
+        lastHistoryVersionRef.current = nextVersion;
       }
     });
 
@@ -224,7 +247,6 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
       appendEventLog(message);
       if (message.type !== 'STATE_SNAPSHOT' && message.type !== 'PONG') {
         resetLocalState();
-        socket.requestSync();
       }
     });
 
@@ -604,7 +626,7 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
               ) : (
                 <>
                   <Board tiles={snapshot.board} placements={placements} onCellClick={handleCellClick} />
-                  <DragOverlay>
+                  <DragOverlay dropAnimation={null} adjustScale={false} className="drag-overlay">
                     {activeTile ? <Tile tile={activeTile} dragging label={activeTileLabel} /> : null}
                   </DragOverlay>
                 </>
@@ -675,6 +697,12 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
                       >
                         {snapshot.bagCount}
                       </button>
+                    </strong>
+                  </div>
+                  <div className="debug-meta">
+                    <span>Debug</span>
+                    <strong>
+                      v{snapshot.stateVersion ?? 0} · tiles {snapshot.boardTiles}
                     </strong>
                   </div>
                   {snapshot.winner && (

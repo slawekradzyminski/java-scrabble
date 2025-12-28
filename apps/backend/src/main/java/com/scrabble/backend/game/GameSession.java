@@ -23,6 +23,7 @@ public final class GameSession {
   private String status;
   private String winner;
   private int consecutivePasses;
+  private int stateVersion;
 
   GameSession(String roomId, GameState state, Instant createdAt, String status, Set<String> botPlayers) {
     this.roomId = roomId;
@@ -82,6 +83,14 @@ public final class GameSession {
 
   public void incrementExchanges(String playerName) {
     exchangesByPlayer.merge(playerName, 1, Integer::sum);
+  }
+
+  public int stateVersion() {
+    return stateVersion;
+  }
+
+  public void bumpStateVersion() {
+    stateVersion += 1;
   }
 
   public void recordHistory(WsMessage message) {

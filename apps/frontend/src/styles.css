@@ -261,6 +261,12 @@ body {
   color: rgba(45, 29, 15, 0.9);
 }
 
+.drag-overlay {
+  transform: translateZ(0);
+  will-change: transform;
+  pointer-events: none;
+}
+
 .tile--blank .tile__letter {
   color: #1f140a;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
@@ -340,6 +346,12 @@ body {
   text-transform: none;
   color: #2f2317;
   margin-top: 2px;
+}
+
+.debug-meta strong {
+  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+  color: rgba(47, 35, 23, 0.72);
 }
 
 .bag-button {

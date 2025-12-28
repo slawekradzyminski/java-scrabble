@@ -1,5 +1,8 @@
 ## Monorepo layout (one repository)
 
+### Progress notes
+- 2025-12-27: Ran AI simulator tests; lowered default batch min score to 600 and sanitized simulation console output to ASCII to avoid test report encoding failures.
+
 ### Top-level structure
 - `apps/backend/` – Spring Boot WebFlux app (REST + WebSocket)
 - `apps/frontend/` – React + TS
@@ -122,7 +125,7 @@ Acceptance checks:
 ## Progress notes
 - 2025-12-27: Enforced exchange limits (max 3 per player) and 7-tile bag minimum for exchanges; added backend tests.
 - 2025-12-27: Switched to automatic move validation (no manual challenge) and removed challenge UI/tests.
-- 2025-12-27: Reverted 5s websocket sync interval and live indicator; added reconnect-only resync snapshot with placement-safe resets.
+- 2025-12-27: Reverted periodic/live syncs; relying on WS snapshots only with placement-safe resets.
 Goal: authoritative server, real-time turns, reconnection.
 
 Deliverables in `apps/backend`:

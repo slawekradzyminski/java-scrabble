@@ -27,6 +27,7 @@ import com.scrabble.engine.ai.WordDictionary;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -77,6 +78,7 @@ public class GameService {
 
       GameState state = new GameState(BoardState.empty(), players, bag);
       GameSession session = registry.create(roomId, state, room.botPlayers());
+      session.bumpStateVersion();
       applyAiTurns(session, new ArrayList<>());
       return session;
     });
@@ -124,17 +126,21 @@ public class GameService {
         if (valid) {
           refillRack(player.rack(), state.bag());
           session.resetPasses();
+          session.bumpStateVersion();
           broadcast.add(new WsMessage(WsMessageType.MOVE_ACCEPTED, Map.of(
               "player", player.name(),
               "score", scoring.totalScore(),
-              "words", wordsToPayload(scoring.words()))));
+              "words", wordsToPayload(scoring.words()),
+              "stateVersion", session.stateVersion())));
         } else {
+          session.bumpStateVersion();
           broadcast.add(new WsMessage(WsMessageType.MOVE_REJECTED, Map.of(
               "player", player.name(),
               "reason", "invalid_words",
-              "invalidWords", invalidWords)));
+              "invalidWords", invalidWords,
+              "stateVersion", session.stateVersion())));
         }
-        WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
+        WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, turnPayload(state, session.stateVersion()));
         WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
             GameSnapshot.from(session, session.status()).toPayload());
         broadcast.add(turn);
@@ -164,7 +170,8 @@ public class GameService {
       ensureCurrentPlayer(state, playerIndex);
       state.advanceTurn();
       session.incrementPasses();
-      WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
+      session.bumpStateVersion();
+      WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, turnPayload(state, session.stateVersion()));
       WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
           GameSnapshot.from(session, session.status()).toPayload());
       List<WsMessage> broadcast = new ArrayList<>(List.of(turn, snapshot));
@@ -204,7 +211,8 @@ public class GameService {
         session.incrementExchanges(playerName);
         state.advanceTurn();
         session.incrementPasses();
-        WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
+        session.bumpStateVersion();
+        WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, turnPayload(state, session.stateVersion()));
         WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
             GameSnapshot.from(session, session.status()).toPayload());
         List<WsMessage> broadcast = new ArrayList<>(List.of(turn, snapshot));
@@ -229,9 +237,11 @@ public class GameService {
       int playerIndex = requirePlayerIndex(state, playerName);
       session.setStatus("ended");
       session.setWinner(determineWinner(state, playerIndex));
+      session.bumpStateVersion();
       WsMessage ended = new WsMessage(WsMessageType.GAME_ENDED, Map.of(
           "winner", session.winner(),
-          "resigned", playerName));
+          "resigned", playerName,
+          "stateVersion", session.stateVersion()));
       WsMessage snapshot = new WsMessage(WsMessageType.STATE_SNAPSHOT,
           GameSnapshot.from(session, session.status()).toPayload());
       session.recordHistory(ended);
@@ -263,7 +273,8 @@ public class GameService {
       if (move.isEmpty()) {
         state.advanceTurn();
         session.incrementPasses();
-        broadcast.add(new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state)));
+        session.bumpStateVersion();
+        broadcast.add(new WsMessage(WsMessageType.TURN_ADVANCED, turnPayload(state, session.stateVersion())));
         broadcast.add(snapshotMessage(session));
         if (checkPassEndgame(session, broadcast)) {
           return;
@@ -279,11 +290,13 @@ public class GameService {
         state.resolveChallenge(true);
         refillRack(bot.rack(), state.bag());
         session.resetPasses();
+        session.bumpStateVersion();
         WsMessage accepted = new WsMessage(WsMessageType.MOVE_ACCEPTED, Map.of(
             "player", bot.name(),
             "score", aiMove.scoringResult().totalScore(),
-            "words", wordsToPayload(aiMove.scoringResult().words())));
-        WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state));
+            "words", wordsToPayload(aiMove.scoringResult().words()),
+            "stateVersion", session.stateVersion()));
+        WsMessage turn = new WsMessage(WsMessageType.TURN_ADVANCED, turnPayload(state, session.stateVersion()));
         broadcast.add(accepted);
         broadcast.add(turn);
         broadcast.add(snapshotMessage(session));
@@ -294,7 +307,8 @@ public class GameService {
         restoreTiles(bot.rack(), removed);
         state.advanceTurn();
         session.incrementPasses();
-        broadcast.add(new WsMessage(WsMessageType.TURN_ADVANCED, currentTurnPayload(state)));
+        session.bumpStateVersion();
+        broadcast.add(new WsMessage(WsMessageType.TURN_ADVANCED, turnPayload(state, session.stateVersion())));
         broadcast.add(snapshotMessage(session));
         if (checkPassEndgame(session, broadcast)) {
           return;
@@ -387,7 +401,10 @@ public class GameService {
     applyOutBonus(state, mover);
     session.setStatus("ended");
     session.setWinner(mover.name());
-    broadcast.add(new WsMessage(WsMessageType.GAME_ENDED, Map.of("winner", mover.name())));
+    session.bumpStateVersion();
+    broadcast.add(new WsMessage(WsMessageType.GAME_ENDED, Map.of(
+        "winner", mover.name(),
+        "stateVersion", session.stateVersion())));
     broadcast.add(snapshotMessage(session));
     return true;
   }
@@ -399,7 +416,10 @@ public class GameService {
     applyPassPenalties(session.state());
     session.setStatus("ended");
     session.setWinner(determineWinnerByScore(session.state()));
-    broadcast.add(new WsMessage(WsMessageType.GAME_ENDED, Map.of("winner", session.winner())));
+    session.bumpStateVersion();
+    broadcast.add(new WsMessage(WsMessageType.GAME_ENDED, Map.of(
+        "winner", session.winner(),
+        "stateVersion", session.stateVersion())));
     broadcast.add(snapshotMessage(session));
     return true;
   }
@@ -456,6 +476,12 @@ public class GameService {
     return Map.of(
         "currentPlayerIndex", index,
         "currentPlayer", name);
+  }
+
+  private Map<String, Object> turnPayload(GameState state, int stateVersion) {
+    Map<String, Object> payload = new LinkedHashMap<>(currentTurnPayload(state));
+    payload.put("stateVersion", stateVersion);
+    return payload;
   }
 
   private List<Map<String, Object>> wordsToPayload(List<Word> words) {

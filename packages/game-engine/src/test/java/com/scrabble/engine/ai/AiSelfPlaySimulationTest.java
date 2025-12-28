@@ -324,6 +324,15 @@ class AiSelfPlaySimulationTest {
     writer.write(line);
     writer.newLine();
     writer.flush();
-    System.out.println(line);
+    System.out.println(sanitizeForConsole(line));
+  }
+
+  private String sanitizeForConsole(String line) {
+    StringBuilder builder = new StringBuilder(line.length());
+    for (int i = 0; i < line.length(); i++) {
+      char ch = line.charAt(i);
+      builder.append(ch <= 0x7F ? ch : '?');
+    }
+    return builder.toString();
   }
 }

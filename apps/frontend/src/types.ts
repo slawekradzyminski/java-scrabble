@@ -66,5 +66,6 @@ export interface GameSnapshot {
   pending: PendingMove | null;
   winner: string | null;
   history?: HistoryEntry[];
+  stateVersion?: number;
   serverTime?: string;
 }

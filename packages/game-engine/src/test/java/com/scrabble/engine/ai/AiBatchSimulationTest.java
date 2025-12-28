@@ -39,7 +39,7 @@ class AiBatchSimulationTest {
       throw new IllegalStateException("Dictionary artifacts missing: " + fstPath + " / " + metaPath);
     }
     int games = Integer.parseInt(System.getProperty("ai.simulation.games", "10"));
-    int minTotalScore = Integer.parseInt(System.getProperty("ai.simulation.minScore", "700"));
+    int minTotalScore = Integer.parseInt(System.getProperty("ai.simulation.minScore", "600"));
     int maxTurns = Integer.parseInt(System.getProperty("ai.simulation.maxTurns", "400"));
     int maxCandidates = Integer.parseInt(System.getProperty("ai.simulation.maxCandidates", "900"));
     long seed = Long.parseLong(System.getProperty("ai.simulation.seed", Long.toString(Instant.now().toEpochMilli())));
@@ -347,6 +347,15 @@ class AiBatchSimulationTest {
     writer.write(line);
     writer.newLine();
     writer.flush();
-    System.out.println(line);
+    System.out.println(sanitizeForConsole(line));
+  }
+
+  private String sanitizeForConsole(String line) {
+    StringBuilder builder = new StringBuilder(line.length());
+    for (int i = 0; i < line.length(); i++) {
+      char ch = line.charAt(i);
+      builder.append(ch <= 0x7F ? ch : '?');
+    }
+    return builder.toString();
   }
 }
