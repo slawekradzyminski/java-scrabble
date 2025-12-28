@@ -19,7 +19,6 @@ import com.scrabble.engine.Scorer;
 import com.scrabble.engine.Tile;
 import com.scrabble.engine.TileBag;
 import com.scrabble.engine.Word;
-import com.scrabble.engine.ai.WordDictionary;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,30 +33,30 @@ public class GameService {
   private final RoomService roomService;
   private final Dictionary dictionary;
   private final Random random;
-  private final WordDictionary wordDictionary;
   private final GameRegistry registry = new GameRegistry();
-  private final GameCommandValidator validator = new GameCommandValidator();
-  private final GameMessageFactory messageFactory = new GameMessageFactory();
-  private final GameRackManager rackManager = new GameRackManager();
-  private final GameEndgameService endgameService = new GameEndgameService(messageFactory);
+  private final GameCommandValidator validator;
+  private final GameMessageFactory messageFactory;
+  private final GameRackManager rackManager;
+  private final GameEndgameService endgameService;
   private final GameAiService aiService;
 
-  public GameService(RoomService roomService, Dictionary dictionary, Random random) {
+  public GameService(
+      RoomService roomService,
+      Dictionary dictionary,
+      Random random,
+      GameCommandValidator validator,
+      GameMessageFactory messageFactory,
+      GameRackManager rackManager,
+      GameEndgameService endgameService,
+      GameAiService aiService) {
     this.roomService = roomService;
     this.dictionary = dictionary;
     this.random = random;
-    this.wordDictionary = new WordDictionary() {
-      @Override
-      public boolean contains(String word) {
-        return dictionary.contains(word);
-      }
-
-      @Override
-      public boolean containsPrefix(String prefix) {
-        return dictionary.containsPrefix(prefix);
-      }
-    };
-    this.aiService = new GameAiService(wordDictionary, rackManager, endgameService, messageFactory);
+    this.validator = validator;
+    this.messageFactory = messageFactory;
+    this.rackManager = rackManager;
+    this.endgameService = endgameService;
+    this.aiService = aiService;
   }
 
   public GameSession start(String roomId) {
@@ -140,7 +139,7 @@ public class GameService {
         } else {
           session.bumpStateVersion();
           broadcast.add(messageFactory.moveRejected(
-              player.name(), "invalid_words", invalidWords, session.stateVersion()));
+              player.name(), GameCommandReasons.INVALID_WORDS, invalidWords, session.stateVersion()));
         }
         broadcast.add(messageFactory.turnAdvanced(state, session.stateVersion()));
         broadcast.add(messageFactory.snapshot(session));
@@ -154,7 +153,7 @@ public class GameService {
         if (e instanceof com.scrabble.backend.ws.GameCommandException) {
           throw e;
         }
-        throw GameCommandErrors.rejected("invalid_move");
+        throw GameCommandErrors.rejected(GameCommandReasons.INVALID_MOVE);
       }
     }
   }
@@ -189,16 +188,16 @@ public class GameService {
       int playerIndex = validator.requirePlayerIndex(state, playerName);
       validator.ensureCurrentPlayer(state, playerIndex);
       if (tiles.isEmpty()) {
-        throw GameCommandErrors.rejected("empty_exchange");
+        throw GameCommandErrors.rejected(GameCommandReasons.EMPTY_EXCHANGE);
       }
       if (session.exchangesUsed(playerName) >= MAX_EXCHANGES_PER_PLAYER) {
-        throw GameCommandErrors.rejected("exchange_limit_reached");
+        throw GameCommandErrors.rejected(GameCommandReasons.EXCHANGE_LIMIT_REACHED);
       }
       if (state.bag().size() < MIN_EXCHANGE_BAG_SIZE) {
-        throw GameCommandErrors.rejected("bag_too_small");
+        throw GameCommandErrors.rejected(GameCommandReasons.BAG_TOO_SMALL);
       }
       if (state.bag().size() < tiles.size()) {
-        throw GameCommandErrors.rejected("bag_too_small");
+        throw GameCommandErrors.rejected(GameCommandReasons.BAG_TOO_SMALL);
       }
       Player player = state.players().get(playerIndex);
       List<Tile> removed = new ArrayList<>();
@@ -223,7 +222,7 @@ public class GameService {
         if (e instanceof com.scrabble.backend.ws.GameCommandException) {
           throw e;
         }
-        throw GameCommandErrors.rejected("exchange_failed");
+        throw GameCommandErrors.rejected(GameCommandReasons.EXCHANGE_FAILED);
       }
     }
   }
@@ -253,7 +252,7 @@ public class GameService {
 
   private GameSession requireSession(String roomId) {
     return registry.find(roomId)
-        .orElseThrow(() -> GameCommandErrors.rejected("game_not_started"));
+        .orElseThrow(() -> GameCommandErrors.rejected(GameCommandReasons.GAME_NOT_STARTED));
   }
 
   private void recordHistory(GameSession session, List<WsMessage> messages) {

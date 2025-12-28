@@ -11,23 +11,28 @@ import com.scrabble.engine.ai.WordDictionary;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.stereotype.Component;
 
-final class GameAiService {
+@Component
+public final class GameAiService {
   private final AiMoveGenerator aiMoveGenerator = new AiMoveGenerator();
   private final WordDictionary wordDictionary;
   private final GameRackManager rackManager;
   private final GameEndgameService endgameService;
   private final GameMessageFactory messageFactory;
+  private final GameAiSettings settings;
 
-  GameAiService(
+  public GameAiService(
       WordDictionary wordDictionary,
       GameRackManager rackManager,
       GameEndgameService endgameService,
-      GameMessageFactory messageFactory) {
+      GameMessageFactory messageFactory,
+      GameAiSettings settings) {
     this.wordDictionary = wordDictionary;
     this.rackManager = rackManager;
     this.endgameService = endgameService;
     this.messageFactory = messageFactory;
+    this.settings = settings;
   }
 
   void applyAiTurns(GameSession session, List<WsMessage> broadcast) {
@@ -38,7 +43,7 @@ final class GameAiService {
       if (!session.isBot(current)) {
         return;
       }
-      if (safety++ > 4) {
+      if (safety++ >= settings.maxTurns()) {
         return;
       }
 

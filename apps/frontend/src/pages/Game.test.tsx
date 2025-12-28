@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ConnectionState } from '../api';
 
 const connectMock = vi.fn();
@@ -144,7 +145,8 @@ describe('Game', () => {
     await waitForConnection();
     sendSnapshot();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Leave Room' }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Leave Room' }));
 
     expect(onLeave).toHaveBeenCalled();
   });
@@ -163,7 +165,8 @@ describe('Game', () => {
     await waitForConnection();
     sendSnapshot();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pass' }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Pass' }));
 
     expect(sendMock).toHaveBeenCalledWith({ type: 'PASS', payload: { player: 'Alice' } });
   });
@@ -173,7 +176,8 @@ describe('Game', () => {
     await waitForConnection();
     sendSnapshot();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Resign' }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Resign' }));
 
     expect(sendMock).toHaveBeenCalledWith({ type: 'RESIGN', payload: { player: 'Alice' } });
   });
@@ -183,8 +187,9 @@ describe('Game', () => {
     await waitForConnection();
     sendSnapshot();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Test add placement' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Play tiles' }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Test add placement' }));
+    await user.click(screen.getByRole('button', { name: 'Play tiles' }));
 
     expect(sendMock).toHaveBeenCalledWith({
       type: 'PLAY_TILES',
@@ -197,10 +202,11 @@ describe('Game', () => {
     await waitForConnection();
     sendSnapshot();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Test add placement' }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Test add placement' }));
     expect(screen.getByRole('button', { name: 'Reset' })).toBeEnabled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    await user.click(screen.getByRole('button', { name: 'Reset' }));
     expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled();
   });
 
@@ -209,7 +215,8 @@ describe('Game', () => {
     await waitForConnection();
     sendSnapshot({ status: 'not_started' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Start' }));
 
     await waitFor(() => {
       expect(startGameMock).toHaveBeenCalledWith('room-1');
@@ -223,7 +230,8 @@ describe('Game', () => {
     await waitForConnection();
     sendSnapshot({ status: 'not_started' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Start' }));
 
     await waitFor(() => {
       expect(screen.getByText('Start failed')).toBeInTheDocument();
@@ -245,7 +253,8 @@ describe('Game', () => {
     await waitForConnection();
     sendSnapshot();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Test drop blank' }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Test drop blank' }));
 
     expect(promptSpy).toHaveBeenCalledWith('Blank tile: choose a letter (A-Z)');
     promptSpy.mockRestore();
@@ -257,7 +266,8 @@ describe('Game', () => {
     await waitForConnection();
     sendSnapshot();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Test drop blank' }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Test drop blank' }));
 
     expect(screen.getByRole('button', { name: 'Play tiles' })).toBeDisabled();
     promptSpy.mockRestore();
@@ -273,6 +283,7 @@ describe('Game', () => {
   });
 
   it('disables action buttons before socket is ready', async () => {
+    joinRoomMock.mockReturnValue(new Promise(() => {}));
     render(<Game {...defaultProps} />);
 
     expect(screen.getByRole('button', { name: 'Pass' })).toBeDisabled();

@@ -3,6 +3,7 @@ package com.scrabble.backend.game;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.scrabble.backend.BackendApplication;
 import com.scrabble.backend.lobby.Room;
 import com.scrabble.backend.lobby.RoomService;
 import com.scrabble.backend.ws.GameCommandException;
@@ -15,17 +16,40 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.boot.test.context.TestConfiguration;
 
+@SpringBootTest(
+    classes = {BackendApplication.class, GameServiceTest.TestConfig.class},
+    properties = "spring.main.allow-bean-definition-overriding=true")
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class GameServiceTest {
+
+  @Autowired
+  private GameService gameService;
+
+  @Autowired
+  private RoomService roomService;
+
+  @Autowired
+  private MutableDictionary dictionary;
+
+  @BeforeEach
+  void allowAllWords() {
+    dictionary.allowAll();
+  }
 
   @Test
   void autoAcceptsValidMoveAndAdvancesTurn() {
     // given
-    RoomService roomService = new RoomService();
-    Dictionary dictionary = word -> true;
-    GameService gameService = new GameService(roomService, dictionary, new Random(7));
-
     Room room = roomService.create("Room", "Alice");
     roomService.join(room.id(), "Bob");
     GameSession session = gameService.start(room.id());
@@ -52,10 +76,7 @@ class GameServiceTest {
   @Test
   void autoRejectsInvalidMoveAndRestoresRack() {
     // given
-    RoomService roomService = new RoomService();
-    Dictionary dictionary = word -> false;
-    GameService gameService = new GameService(roomService, dictionary, new Random(3));
-
+    dictionary.rejectAll();
     Room room = roomService.create("Room", "Alice");
     roomService.join(room.id(), "Bob");
     GameSession session = gameService.start(room.id());
@@ -81,10 +102,6 @@ class GameServiceTest {
   @Test
   void passAdvancesTurn() {
     // given
-    RoomService roomService = new RoomService();
-    Dictionary dictionary = word -> true;
-    GameService gameService = new GameService(roomService, dictionary, new Random(5));
-
     Room room = roomService.create("Room", "Alice");
     roomService.join(room.id(), "Bob");
     gameService.start(room.id());
@@ -100,10 +117,6 @@ class GameServiceTest {
   @Test
   void aiOpponentPlaysAfterHumanTurn() {
     // given
-    RoomService roomService = new RoomService();
-    Dictionary dictionary = word -> true;
-    GameService gameService = new GameService(roomService, dictionary, new Random(13));
-
     Room room = roomService.create("Room AI", "Alice", true);
     gameService.start(room.id());
 
@@ -119,10 +132,6 @@ class GameServiceTest {
   @Test
   void autoResolvesMoveWithoutChallenge() {
     // given
-    RoomService roomService = new RoomService();
-    Dictionary dictionary = word -> true;
-    GameService gameService = new GameService(roomService, dictionary, new Random(15));
-
     Room room = roomService.create("Room AI", "Alice", true);
     GameSession session = gameService.start(room.id());
     Player alice = session.state().players().get(0);
@@ -145,10 +154,6 @@ class GameServiceTest {
   @Test
   void exchangeSwapsTilesAndAdvancesTurn() {
     // given
-    RoomService roomService = new RoomService();
-    Dictionary dictionary = word -> true;
-    GameService gameService = new GameService(roomService, dictionary, new Random(9));
-
     Room room = roomService.create("Room", "Alice");
     roomService.join(room.id(), "Bob");
     GameSession session = gameService.start(room.id());
@@ -167,10 +172,6 @@ class GameServiceTest {
   @Test
   void exchangeRejectsWhenBagHasFewerThanSevenTiles() {
     // given
-    RoomService roomService = new RoomService();
-    Dictionary dictionary = word -> true;
-    GameService gameService = new GameService(roomService, dictionary, new Random(5));
-
     Room room = roomService.create("Room", "Alice");
     GameSession session = gameService.start(room.id());
     Player alice = session.state().players().get(0);
@@ -183,17 +184,13 @@ class GameServiceTest {
         .isInstanceOf(GameCommandException.class)
         .satisfies(error -> {
           GameCommandException exception = (GameCommandException) error;
-          assertThat(exception.payload().get("reason")).isEqualTo("bag_too_small");
+          assertThat(exception.payload().get("reason")).isEqualTo(GameCommandReasons.BAG_TOO_SMALL);
         });
   }
 
   @Test
   void exchangeRejectsAfterThreeExchangesBySamePlayer() {
     // given
-    RoomService roomService = new RoomService();
-    Dictionary dictionary = word -> true;
-    GameService gameService = new GameService(roomService, dictionary, new Random(13));
-
     Room room = roomService.create("Room", "Alice");
     roomService.join(room.id(), "Bob");
     GameSession session = gameService.start(room.id());
@@ -215,17 +212,13 @@ class GameServiceTest {
         .isInstanceOf(GameCommandException.class)
         .satisfies(error -> {
           GameCommandException exception = (GameCommandException) error;
-          assertThat(exception.payload().get("reason")).isEqualTo("exchange_limit_reached");
+          assertThat(exception.payload().get("reason")).isEqualTo(GameCommandReasons.EXCHANGE_LIMIT_REACHED);
         });
   }
 
   @Test
   void resignEndsGameAndSetsWinner() {
     // given
-    RoomService roomService = new RoomService();
-    Dictionary dictionary = word -> true;
-    GameService gameService = new GameService(roomService, dictionary, new Random(11));
-
     Room room = roomService.create("Room", "Alice");
     roomService.join(room.id(), "Bob");
     gameService.start(room.id());
@@ -242,10 +235,6 @@ class GameServiceTest {
   @Test
   void outMoveEndsGameAndAppliesRackBonus() {
     // given
-    RoomService roomService = new RoomService();
-    Dictionary dictionary = word -> true;
-    GameService gameService = new GameService(roomService, dictionary, new Random(17));
-
     Room room = roomService.create("Room", "Alice");
     roomService.join(room.id(), "Bob");
     GameSession session = gameService.start(room.id());
@@ -282,10 +271,6 @@ class GameServiceTest {
   @Test
   void fourPassesEndGameWithRackPenalties() {
     // given
-    RoomService roomService = new RoomService();
-    Dictionary dictionary = word -> true;
-    GameService gameService = new GameService(roomService, dictionary, new Random(21));
-
     Room room = roomService.create("Room", "Alice");
     roomService.join(room.id(), "Bob");
     gameService.start(room.id());
@@ -315,5 +300,43 @@ class GameServiceTest {
       }
     }
     throw new IllegalStateException("Not enough non-blank tiles");
+  }
+
+  @TestConfiguration
+  static class TestConfig {
+    @Bean
+    @Primary
+    public MutableDictionary dictionary() {
+      return new MutableDictionary();
+    }
+
+    @Bean
+    @Primary
+    public Random random() {
+      return new Random(7);
+    }
+  }
+
+  static final class MutableDictionary implements Dictionary {
+    private final AtomicReference<Predicate<String>> predicate =
+        new AtomicReference<>(word -> true);
+
+    void allowAll() {
+      predicate.set(word -> true);
+    }
+
+    void rejectAll() {
+      predicate.set(word -> false);
+    }
+
+    @Override
+    public boolean contains(String word) {
+      return predicate.get().test(word);
+    }
+
+    @Override
+    public boolean containsPrefix(String prefix) {
+      return predicate.get().test(prefix);
+    }
   }
 }

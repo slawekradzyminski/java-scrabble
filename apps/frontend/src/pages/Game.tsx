@@ -102,6 +102,13 @@ export default function Game({ roomId, player, onLeave }: GameProps) {
     };
   }, [disconnect]);
 
+  useEffect(() => {
+    document.body.dataset.gpu = 'safe';
+    return () => {
+      delete document.body.dataset.gpu;
+    };
+  }, []);
+
   const handleStartGame = async () => {
     if (!roomId) {
       return;

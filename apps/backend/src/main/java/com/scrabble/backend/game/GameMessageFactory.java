@@ -13,8 +13,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.stereotype.Component;
 
-final class GameMessageFactory {
+@Component
+public final class GameMessageFactory {
 
   WsMessage moveAccepted(Player player, ScoringResult scoring, Map<Coordinate, PlacedTile> placements, int stateVersion) {
     return new WsMessage(WsMessageType.MOVE_ACCEPTED, Map.of(

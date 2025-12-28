@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 vi.mock('./pages/Lobby', () => ({
   default: ({ player, onPlayerChange, onJoinRoom }: {
@@ -71,8 +72,9 @@ describe('App', () => {
   it('navigates to Game when joining room from Lobby', async () => {
     render(<App />);
 
-    fireEvent.change(screen.getByTestId('player-input'), { target: { value: 'Bob' } });
-    fireEvent.click(screen.getByTestId('join-btn'));
+    const user = userEvent.setup();
+    await user.type(screen.getByTestId('player-input'), 'Bob');
+    await user.click(screen.getByTestId('join-btn'));
 
     await waitFor(() => {
       expect(screen.getByTestId('game')).toBeInTheDocument();
@@ -89,7 +91,8 @@ describe('App', () => {
 
     expect(screen.getByTestId('game')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId('leave-btn'));
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('leave-btn'));
 
     await waitFor(() => {
       expect(screen.getByTestId('lobby')).toBeInTheDocument();
@@ -101,9 +104,10 @@ describe('App', () => {
   it('persists player name to localStorage', () => {
     render(<App />);
 
-    fireEvent.change(screen.getByTestId('player-input'), { target: { value: 'Charlie' } });
-
-    expect(window.localStorage.getItem('scrabble.player')).toBe('Charlie');
+    const user = userEvent.setup();
+    return user.type(screen.getByTestId('player-input'), 'Charlie').then(() => {
+      expect(window.localStorage.getItem('scrabble.player')).toBe('Charlie');
+    });
   });
 
   it('loads player name from localStorage', () => {
@@ -117,11 +121,14 @@ describe('App', () => {
     window.localStorage.setItem('scrabble.player', 'Eve');
     render(<App />);
 
-    fireEvent.click(screen.getByTestId('join-btn'));
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('join-btn'));
     await waitFor(() => expect(screen.getByTestId('game')).toBeInTheDocument());
 
-    window.history.back();
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    act(() => {
+      window.history.back();
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId('lobby')).toBeInTheDocument();
@@ -148,8 +155,9 @@ describe('App', () => {
     window.localStorage.setItem('scrabble.player', 'Henry');
     render(<App />);
 
-    fireEvent.change(screen.getByTestId('player-input'), { target: { value: '' } });
-
-    expect(window.localStorage.getItem('scrabble.player')).toBeNull();
+    const user = userEvent.setup();
+    return user.clear(screen.getByTestId('player-input')).then(() => {
+      expect(window.localStorage.getItem('scrabble.player')).toBeNull();
+    });
   });
 });

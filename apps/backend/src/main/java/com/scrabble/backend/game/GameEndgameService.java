@@ -5,12 +5,14 @@ import com.scrabble.engine.GameState;
 import com.scrabble.engine.Player;
 import com.scrabble.engine.Tile;
 import java.util.List;
+import org.springframework.stereotype.Component;
 
-final class GameEndgameService {
+@Component
+public final class GameEndgameService {
   private static final int MAX_CONSECUTIVE_PASSES = 4;
   private final GameMessageFactory messageFactory;
 
-  GameEndgameService(GameMessageFactory messageFactory) {
+  public GameEndgameService(GameMessageFactory messageFactory) {
     this.messageFactory = messageFactory;
   }
 

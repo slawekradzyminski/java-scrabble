@@ -36,6 +36,7 @@ export function useGameSocket({ onResetLocal, hasLocalPlacements }: UseGameSocke
   const lastHistoryVersionRef = useRef<number | null>(null);
   const lastSnapshotVersionRef = useRef<number | null>(null);
   const pendingSyncRef = useRef<number | null>(null);
+  const playerRef = useRef<string | null>(null);
   const lastEventIdRef = useRef<number | null>(null);
   const eventIdsRef = useRef<Set<number>>(new Set());
 
@@ -243,6 +244,7 @@ export function useGameSocket({ onResetLocal, hasLocalPlacements }: UseGameSocke
     lastEventIdRef.current = null;
     eventIdsRef.current = new Set();
     clearPendingSync();
+    playerRef.current = player;
     setSnapshot({ ...emptySnapshot, roomId });
     onResetLocal();
 
@@ -299,8 +301,11 @@ export function useGameSocket({ onResetLocal, hasLocalPlacements }: UseGameSocke
 
     socket.onEvent((message: WsMessage) => {
       appendEventLog(message);
-      if (message.type !== 'STATE_SNAPSHOT' && message.type !== 'PONG') {
-        onResetLocal();
+      if (message.type === 'MOVE_REJECTED') {
+        const messagePlayer = message.payload?.player;
+        if (typeof messagePlayer === 'string' && messagePlayer === playerRef.current) {
+          onResetLocal();
+        }
       }
     });
 

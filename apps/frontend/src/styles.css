@@ -263,6 +263,29 @@ body {
   pointer-events: none;
 }
 
+body[data-gpu="safe"] .tile,
+body[data-gpu="safe"] .panel,
+body[data-gpu="safe"] .board-cell,
+body[data-gpu="safe"] .rack-slot,
+body[data-gpu="safe"] .modal,
+body[data-gpu="safe"] .topbar,
+body[data-gpu="safe"] .compact-header {
+  box-shadow: none !important;
+  transition: none !important;
+}
+
+body[data-gpu="safe"] .tile {
+  background: #f6ead6;
+}
+
+body[data-gpu="safe"] .board-cell:hover {
+  box-shadow: none;
+}
+
+body[data-gpu="safe"] .tile--dragging {
+  box-shadow: none;
+}
+
 .tile--blank .tile__letter {
   color: #1f140a;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);

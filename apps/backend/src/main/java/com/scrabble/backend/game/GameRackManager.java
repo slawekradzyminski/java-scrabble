@@ -5,8 +5,10 @@ import com.scrabble.engine.Rack;
 import com.scrabble.engine.Tile;
 import com.scrabble.engine.TileBag;
 import java.util.List;
+import org.springframework.stereotype.Component;
 
-final class GameRackManager {
+@Component
+public final class GameRackManager {
 
   void takePlacedTilesFromRack(Rack rack, Iterable<PlacedTile> placements, List<Tile> removed) {
     for (PlacedTile placed : placements) {
@@ -42,6 +44,6 @@ final class GameRackManager {
         return tile;
       }
     }
-    throw GameCommandErrors.rejected("tile_not_in_rack");
+    throw GameCommandErrors.rejected(GameCommandReasons.TILE_NOT_IN_RACK);
   }
 }
