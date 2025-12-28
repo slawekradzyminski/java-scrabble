@@ -1,4 +1,3 @@
-import React from 'react';
 import type { EventLogEntry } from '../types';
 
 interface HistoryPanelProps {

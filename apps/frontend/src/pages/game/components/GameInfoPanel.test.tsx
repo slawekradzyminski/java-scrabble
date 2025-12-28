@@ -1,4 +1,3 @@
-import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import GameInfoPanel from './GameInfoPanel';
 import type { GameSnapshot } from '../../../types';

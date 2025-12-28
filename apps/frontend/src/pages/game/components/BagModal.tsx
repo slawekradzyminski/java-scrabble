@@ -1,4 +1,3 @@
-import React from 'react';
 import Tile from '../../../components/Tile';
 import type { BagTile } from '../utils/bagTiles';
 

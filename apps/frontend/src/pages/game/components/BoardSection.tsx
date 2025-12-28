@@ -1,4 +1,3 @@
-import React from 'react';
 import { DragOverlay } from '@dnd-kit/core';
 import Board from '../../../components/Board';
 import Rack from '../../../components/Rack';

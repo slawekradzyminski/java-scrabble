@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { RoomSummary } from '../types';
 import { createRoom, listRooms } from '../api';
 
@@ -158,4 +158,3 @@ export default function Lobby({ player, onPlayerChange, onJoinRoom }: LobbyProps
     </main>
   );
 }
-

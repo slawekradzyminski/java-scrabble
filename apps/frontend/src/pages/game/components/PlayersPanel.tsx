@@ -1,4 +1,3 @@
-import React from 'react';
 import PlayerList from '../../../components/PlayerList';
 import type { PlayerSnapshot } from '../../../types';
 

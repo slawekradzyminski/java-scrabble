@@ -1,10 +1,10 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 
 interface BoardCellProps {
   id: string;
   label?: string;
   premium?: string;
-  children?: React.ReactNode;
+  children?: ReactNode;
   highlighted?: boolean;
 }
 

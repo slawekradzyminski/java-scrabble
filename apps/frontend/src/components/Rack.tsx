@@ -1,4 +1,3 @@
-import React from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { RackTile } from '../types';
 import Tile from './Tile';

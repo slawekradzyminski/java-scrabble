@@ -1,4 +1,3 @@
-import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import HistoryPanel from './HistoryPanel';
 import type { EventLogEntry } from '../types';

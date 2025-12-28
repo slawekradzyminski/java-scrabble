@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { closestCenter, DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { RackTile } from '../types';
 import { joinRoom, startGame } from '../api';
