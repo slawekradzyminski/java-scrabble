@@ -8,6 +8,8 @@
 - 2025-12-28: Strengthened GPU-safe styling by flattening gradients/shadows on board, rack, and panels.
 - 2025-12-28: Included event payloads for REST-hydrated history so last-move summaries can show score/words.
 - 2025-12-28: Removed debug panel row and aligned board/rack to the top of the game column.
+- 2025-12-28: Added frontend coverage run to regression script to catch CI coverage failures.
+- 2025-12-28: Expanded usePlacements hook tests to lift branch coverage above thresholds.
 
 ### Top-level structure
 - `apps/backend/` – Spring Boot WebFlux app (REST + WebSocket)

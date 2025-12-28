@@ -58,6 +58,14 @@ else
   exit 1
 fi
 
+section "Frontend: coverage"
+if (cd "$FRONTEND_DIR" && npm run test:coverage); then
+  success "Frontend coverage passed"
+else
+  failure "Frontend coverage failed"
+  exit 1
+fi
+
 section "Frontend: build"
 if (cd "$FRONTEND_DIR" && npm run build); then
   success "Frontend build passed"
